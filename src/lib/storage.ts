@@ -1183,7 +1183,7 @@ class StorageManager {
 
     // Check if master PIN entered
     if (this.verifyAdminMasterPin(pin)) {
-      const admin = users.find(u => u.role === 'super_admin') || this.getCurrentUser();
+      const admin = users.find(u => u.role === 'super_admin') || this.getCurrentUser() || DEFAULT_USERS[0];
       this.setCurrentUser(admin);
       this.setScreenLocked(false);
       return { success: true, user: admin };
@@ -1192,45 +1192,54 @@ class StorageManager {
     return { success: false, message: 'รหัส PIN ไม่ถูกต้อง' };
   }
 
-  public getCurrentUser(): AppUser {
+  public getCurrentUser(): AppUser | null {
     this.init();
-    const user = this.getItem<AppUser | null>(STORAGE_KEYS.CURRENT_USER, null);
-    if (!user) {
-      this.setCurrentUser(DEFAULT_USERS[0]);
-      return DEFAULT_USERS[0];
-    }
-    return user;
+    return this.getItem<AppUser | null>(STORAGE_KEYS.CURRENT_USER, null);
+  }
+
+  public isLoggedIn(): boolean {
+    return this.getCurrentUser() !== null;
   }
 
   public setCurrentUser(user: AppUser | null): void {
-    const targetUser = user || DEFAULT_USERS[1]; // fallback to worker
-    this.setItem(STORAGE_KEYS.CURRENT_USER, targetUser);
+    if (user) {
+      this.setItem(STORAGE_KEYS.CURRENT_USER, user);
+    } else {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+      }
+    }
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('pzt_auth_changed', { detail: targetUser }));
+      window.dispatchEvent(new CustomEvent('pzt_auth_changed', { detail: user }));
     }
   }
 
-  public authenticate(usernameOrPhone: string, pin: string): AppUser | null {
+  public authenticate(usernameOrPhone: string, passwordOrPin: string): AppUser | null {
     const users = this.getActiveUsers();
     const cleanInput = usernameOrPhone.trim().toLowerCase();
-    const cleanPin = pin.trim();
+    const cleanSecret = passwordOrPin.trim();
 
-    const matched = users.find(
-      u => (u.username.toLowerCase() === cleanInput || u.phone === cleanInput) && u.pin === cleanPin
-    );
+    const matched = users.find(u => {
+      const matchIdentity = 
+        u.username.toLowerCase() === cleanInput || 
+        (u.phone && u.phone.replace(/[^0-9]/g, '') === cleanInput.replace(/[^0-9]/g, ''));
+      const matchSecret = 
+        u.pin === cleanSecret || 
+        (u.password && u.password === cleanSecret);
+      return matchIdentity && matchSecret;
+    });
 
     if (matched) {
       this.setCurrentUser(matched);
+      this.setScreenLocked(false);
       return matched;
     }
     return null;
   }
 
   public logout(): void {
-    // On logout, lock screen or default to worker
-    const users = this.getActiveUsers();
-    const worker = users.find(u => u.role === 'worker') || users[0];
-    this.setCurrentUser(worker);
+    this.setCurrentUser(null);
+    this.setScreenLocked(false);
   }
 }
 

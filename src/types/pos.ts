@@ -18,6 +18,7 @@ export interface AppUser {
   username: string;
   phone?: string;
   pin: string;
+  password?: string;
   role: UserRole;
   avatar_emoji?: string;
   is_active?: boolean;

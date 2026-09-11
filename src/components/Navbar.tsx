@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   ShoppingBag, 
   BarChart3, 
@@ -23,7 +23,8 @@ import {
   CalendarCheck,
   UserCheck,
   KeyRound,
-  ChevronDown
+  ChevronDown,
+  LogOut
 } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { isSoundEnabled, setSoundEnabled, playBeep } from '@/lib/audio';
@@ -35,8 +36,10 @@ import ScreenLockModal from './ScreenLockModal';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [largeFont, setLargeFont] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
@@ -44,6 +47,7 @@ export default function Navbar() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const manageMenuRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSoundOn(isSoundEnabled());
@@ -59,7 +63,7 @@ export default function Navbar() {
 
     // Listen to real-time auth changes
     const handleAuthChanged = (e: Event) => {
-      const customEvent = e as CustomEvent<AppUser>;
+      const customEvent = e as CustomEvent<AppUser | null>;
       setCurrentUser(customEvent.detail || storage.getCurrentUser());
     };
 
@@ -69,10 +73,13 @@ export default function Navbar() {
       setIsLocked(customEvent.detail);
     };
 
-    // Listen to click outside to close management dropdown
+    // Listen to click outside to close dropdowns
     const handleClickOutside = (e: MouseEvent) => {
       if (manageMenuRef.current && !manageMenuRef.current.contains(e.target as Node)) {
         setIsManageMenuOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
     };
 
@@ -142,6 +149,11 @@ export default function Navbar() {
     const role = currentUser?.role || 'worker';
     return item.roles.includes(role);
   });
+
+  // If on login page or no user is logged in, hide navbar
+  if (pathname === '/login' || !currentUser) {
+    return null;
+  }
 
   return (
     <>
@@ -266,30 +278,92 @@ export default function Navbar() {
           {/* Right Action Tools: Role Pill, Shift, Sound, Font */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             
-            {/* User Profile / Role Pill Button */}
-            <button
-              type="button"
-              onClick={() => {
-                playBeep(650, 0.04);
-                setIsAuthModalOpen(true);
-              }}
-              className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all active:scale-95 shrink-0 shadow-2xs ${
-                isSuperAdmin
-                  ? 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100'
-                  : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
-              }`}
-              title="แตะเพื่อสลับผู้ใช้งานหรือสมัครสมาชิกใหม่"
-            >
-              <span className="text-base sm:text-lg">{currentUser?.avatar_emoji || (isSuperAdmin ? '👑' : '👷‍♂️')}</span>
-              <span className="font-black max-w-[70px] sm:max-w-[110px] truncate text-slate-900">
-                {currentUser?.name || 'เข้าสู่ระบบ'}
-              </span>
-              <span className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-black uppercase ${
-                isSuperAdmin ? 'bg-purple-200 text-purple-900' : 'bg-amber-200 text-amber-900'
-              }`}>
-                {isSuperAdmin ? 'ADMIN' : 'คนงาน'}
-              </span>
-            </button>
+            {/* User Profile / Role Pill Button with Dropdown */}
+            <div className="relative shrink-0" ref={profileMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  playBeep(650, 0.04);
+                  setIsProfileMenuOpen(!isProfileMenuOpen);
+                }}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl border text-xs font-bold transition-all active:scale-95 shrink-0 shadow-2xs ${
+                  isSuperAdmin
+                    ? 'bg-purple-50 text-purple-900 border-purple-200 hover:bg-purple-100'
+                    : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100'
+                }`}
+                title="แตะเพื่อดูข้อมูลผู้ใช้ หรือออกจากระบบ"
+              >
+                <span className="text-base sm:text-lg">{currentUser?.avatar_emoji || (isSuperAdmin ? '👑' : '👷‍♂️')}</span>
+                <span className="font-black max-w-[80px] sm:max-w-[120px] truncate text-slate-900">
+                  {currentUser?.name || 'เข้าสู่ระบบ'}
+                </span>
+                <span className={`hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] font-black uppercase ${
+                  isSuperAdmin ? 'bg-purple-200 text-purple-900' : 'bg-amber-200 text-amber-900'
+                }`}>
+                  {isSuperAdmin ? 'ADMIN' : 'คนงาน'}
+                </span>
+                <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Profile Menu Dropdown */}
+              {isProfileMenuOpen && (
+                <div className="absolute top-full right-0 mt-2 w-72 rounded-3xl bg-white border border-slate-200 shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center gap-3 mb-2">
+                    <span className="text-3xl">{currentUser?.avatar_emoji || (isSuperAdmin ? '👑' : '👷‍♂️')}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-black text-slate-900 truncate">{currentUser?.name}</div>
+                      <div className="text-xs text-slate-500 font-medium truncate">@{currentUser?.username}</div>
+                      <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                        isSuperAdmin ? 'bg-purple-100 text-purple-800' : 'bg-amber-100 text-amber-900'
+                      }`}>
+                        {isSuperAdmin ? '👑 super ADMIN' : '👷‍♂️ สิทธิ์คนงาน'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all text-left"
+                    >
+                      <UserCheck className="h-4 w-4 text-emerald-600" />
+                      <span>สลับผู้ใช้งาน / เพิ่มสมาชิก</span>
+                    </button>
+
+                    {isSuperAdmin && (
+                      <Link
+                        href="/users"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all text-left"
+                      >
+                        <Users className="h-4 w-4 text-purple-600" />
+                        <span>จัดการพนักงาน & สิทธิ์ (Users)</span>
+                      </Link>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileMenuOpen(false);
+                        if (confirm('คุณต้องการออกจากระบบ (Logout) หรือไม่?')) {
+                          playBeep(450, 0.08);
+                          storage.logout();
+                          router.replace('/login');
+                        }
+                      }}
+                      className="w-full flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-red-50 text-red-600 text-xs font-bold transition-all text-left mt-1 border-t border-slate-100"
+                    >
+                      <LogOut className="h-4 w-4 text-red-600" />
+                      <span>ออกจากระบบ (Logout)</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Quick Screen Lock Button */}
             <button
@@ -386,6 +460,23 @@ export default function Navbar() {
                 สลับผู้ใช้
               </button>
             </div>
+
+            {/* Mobile Logout Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                if (confirm('คุณต้องการออกจากระบบ (Logout) หรือไม่?')) {
+                  playBeep(450, 0.08);
+                  storage.logout();
+                  router.replace('/login');
+                }
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold active:scale-95 transition-all"
+            >
+              <LogOut className="h-4 w-4 text-red-600" />
+              <span>ออกจากระบบ (Logout)</span>
+            </button>
 
             {/* Quick Sound & Font Toggles for Mobile */}
             <div className="grid grid-cols-2 gap-2">

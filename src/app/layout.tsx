@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Prompt } from "next/font/google";
 import Navbar from "@/components/Navbar";
+import AuthGate from "@/components/AuthGate";
 import "./globals.css";
 
 const promptFont = Prompt({
@@ -33,10 +34,12 @@ export default function RootLayout({
   return (
     <html lang="th" className={promptFont.className}>
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
-        <Navbar />
-        <main className="flex-1 max-w-[1600px] 2xl:max-w-[1800px] w-full mx-auto p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6">
-          {children}
-        </main>
+        <AuthGate>
+          <Navbar />
+          <main className="flex-1 max-w-[1600px] 2xl:max-w-[1800px] w-full mx-auto p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6">
+            {children}
+          </main>
+        </AuthGate>
       </body>
     </html>
   );
