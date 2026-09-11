@@ -10,6 +10,7 @@ import {
   ReceiptText, 
   Settings, 
   Layers, 
+  Boxes,
   Menu, 
   X,
   Database,
@@ -82,6 +83,7 @@ export default function Navbar() {
   // Master nav items
   const allNavItems = [
     { label: 'ขายหน้าร้าน', href: '/', icon: ShoppingBag, roles: ['worker', 'super_admin'] },
+    { label: 'สินค้า & SKU', href: '/products', icon: Boxes, roles: ['super_admin'] },
     { label: 'กำไร-ขาดทุน', href: '/dashboard', icon: BarChart3, roles: ['super_admin'] },
     { label: 'ล็อต & ต้นทุน', href: '/lots', icon: Truck, roles: ['super_admin'] },
     { label: 'รายจ่าย & ของเสีย', href: '/expenses', icon: Layers, roles: ['super_admin'] },
@@ -441,7 +443,7 @@ export default function Navbar() {
                   setMobileMenuOpen(!mobileMenuOpen);
                 }}
                 className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl min-w-[54px] transition-all active:scale-95 ${
-                  mobileMenuOpen || pathname === '/expenses' || pathname === '/settings'
+                  mobileMenuOpen || pathname === '/expenses' || pathname === '/settings' || pathname === '/products'
                     ? 'text-emerald-700 font-black'
                     : 'text-slate-500 font-medium'
                 }`}

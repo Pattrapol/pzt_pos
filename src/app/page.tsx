@@ -37,10 +37,14 @@ export default function PosPage() {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>(['ทั้งหมด']);
 
   const loadData = () => {
     setProducts(storage.getProducts());
     setSettings(storage.getSettings());
+    const dynamicCats = storage.getCategories().map(c => c.name);
+    // Unique list with 'ทั้งหมด' first
+    setCategories(['ทั้งหมด', ...Array.from(new Set(dynamicCats))]);
   };
 
   useEffect(() => {
@@ -54,16 +58,29 @@ export default function PosPage() {
         }
       });
     };
-    window.addEventListener('online', handleOnline);
-    return () => window.removeEventListener('online', handleOnline);
-  }, []);
 
-  const categories = ['ทั้งหมด', 'ทุเรียน', 'ทุเรียนแกะเนื้อ', 'ผลไม้สด', 'แปรรูป'];
+    const handleDataChanged = () => {
+      loadData();
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('pzt_products_changed', handleDataChanged);
+    window.addEventListener('pzt_categories_changed', handleDataChanged);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('pzt_products_changed', handleDataChanged);
+      window.removeEventListener('pzt_categories_changed', handleDataChanged);
+    };
+  }, []);
 
   const filteredProducts = products.filter((p) => {
     if (!p.is_active) return false;
     const matchesCategory = selectedCategory === 'ทั้งหมด' || p.category === selectedCategory;
-    const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = 
+      !q || 
+      p.name.toLowerCase().includes(q) || 
+      (p.sku && p.sku.toLowerCase().includes(q));
     return matchesCategory && matchesSearch;
   });
 
@@ -238,12 +255,19 @@ export default function PosPage() {
 
                     {/* Product Details */}
                     <div className="my-1 sm:my-2">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        {product.sku && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                            {product.sku}
+                          </span>
+                        )}
+                        <span className="text-[11px] sm:text-xs text-slate-500 font-semibold truncate">
+                          {product.category}
+                        </span>
+                      </div>
                       <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-tight">
                         {product.name}
                       </h4>
-                      <span className="text-[11px] sm:text-xs text-slate-500 font-semibold">
-                        {product.category}
-                      </span>
                     </div>
 
                     {/* Price Banner */}

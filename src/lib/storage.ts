@@ -10,12 +10,14 @@ import {
   Season,
   PaymentMethod,
   AppUser,
-  UserRole
+  UserRole,
+  ProductCategory
 } from '@/types/pos';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEYS = {
   PRODUCTS: 'pzt_pos_products_v1',
+  CATEGORIES: 'pzt_pos_categories_v1',
   LOTS: 'pzt_pos_lots_v1',
   EXPENSES: 'pzt_pos_expenses_v1',
   WASTE: 'pzt_pos_waste_v1',
@@ -70,9 +72,17 @@ export const DEFAULT_SEASON: Season = {
   created_at: new Date().toISOString()
 };
 
+export const INITIAL_CATEGORIES: ProductCategory[] = [
+  { id: 'cat-1', name: 'ทุเรียน', icon_emoji: '🍈', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'cat-2', name: 'ทุเรียนแกะเนื้อ', icon_emoji: '📦', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'cat-3', name: 'ผลไม้สด', icon_emoji: '🫐', created_at: '2026-01-01T00:00:00Z' },
+  { id: 'cat-4', name: 'แปรรูป', icon_emoji: '🍿', created_at: '2026-01-01T00:00:00Z' }
+];
+
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'p-1',
+    sku: 'SKU-MON-001',
     name: 'ทุเรียนหมอนทอง เกรด A (ทั้งลูก)',
     category: 'ทุเรียน',
     unit_type: 'kg',
@@ -84,6 +94,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-2',
+    sku: 'SKU-MON-002',
     name: 'ทุเรียนหมอนทอง เกรด B (ทั้งลูก)',
     category: 'ทุเรียน',
     unit_type: 'kg',
@@ -95,6 +106,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-3',
+    sku: 'SKU-KAN-003',
     name: 'ทุเรียนก้านยาวพรีเมียม (ทั้งลูก)',
     category: 'ทุเรียน',
     unit_type: 'kg',
@@ -106,6 +118,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-4',
+    sku: 'SKU-CHA-004',
     name: 'ทุเรียนชะนีไข่ (ทั้งลูก)',
     category: 'ทุเรียน',
     unit_type: 'kg',
@@ -117,6 +130,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-5',
+    sku: 'SKU-BOX-005',
     name: 'หมอนทองแกะเนื้อล้วน (กล่อง 500g)',
     category: 'ทุเรียนแกะเนื้อ',
     unit_type: 'box',
@@ -128,6 +142,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-6',
+    sku: 'SKU-MAN-006',
     name: 'มังคุดคัดเกรดส่งออก ผิวลายหวานกรอบ',
     category: 'ผลไม้สด',
     unit_type: 'kg',
@@ -139,6 +154,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-7',
+    sku: 'SKU-RAM-007',
     name: 'เงาะโรงเรียน นาสาร สดจากต้น',
     category: 'ผลไม้สด',
     unit_type: 'kg',
@@ -150,6 +166,7 @@ export const INITIAL_PRODUCTS: Product[] = [
   },
   {
     id: 'p-8',
+    sku: 'SKU-DRY-008',
     name: 'ทุเรียนทอดอบกรอบ แผ่นเกรด A (ถุง 250g)',
     category: 'แปรรูป',
     unit_type: 'piece',
@@ -319,6 +336,9 @@ class StorageManager {
     if (!localStorage.getItem(STORAGE_KEYS.PRODUCTS)) {
       this.setItem(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
     }
+    if (!localStorage.getItem(STORAGE_KEYS.CATEGORIES)) {
+      this.setItem(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+    }
     if (!localStorage.getItem(STORAGE_KEYS.LOTS)) {
       this.setItem(STORAGE_KEYS.LOTS, INITIAL_LOTS);
     }
@@ -373,6 +393,7 @@ class StorageManager {
 
   public resetToDemo(): void {
     this.setItem(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
+    this.setItem(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
     this.setItem(STORAGE_KEYS.LOTS, INITIAL_LOTS);
     this.setItem(STORAGE_KEYS.EXPENSES, INITIAL_EXPENSES);
     this.setItem(STORAGE_KEYS.WASTE, INITIAL_WASTE);
@@ -381,7 +402,55 @@ class StorageManager {
     this.setItem(STORAGE_KEYS.SEASONS, [DEFAULT_SEASON]);
   }
 
-  // Products
+  // Categories Management
+  public getCategories(): ProductCategory[] {
+    this.init();
+    return this.getItem<ProductCategory[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
+  }
+
+  public saveCategory(categoryData: Partial<ProductCategory> & { name: string }): ProductCategory {
+    const categories = this.getCategories();
+    const name = categoryData.name.trim();
+    const existingIndex = categories.findIndex(
+      c => c.id === categoryData.id || c.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (existingIndex >= 0) {
+      categories[existingIndex] = {
+        ...categories[existingIndex],
+        ...categoryData,
+        name
+      };
+      this.setItem(STORAGE_KEYS.CATEGORIES, categories);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pzt_categories_changed', { detail: categories }));
+      }
+      return categories[existingIndex];
+    }
+
+    const newCategory: ProductCategory = {
+      id: categoryData.id || 'cat-' + Date.now(),
+      name,
+      icon_emoji: categoryData.icon_emoji || '🏷️',
+      created_at: new Date().toISOString()
+    };
+    categories.push(newCategory);
+    this.setItem(STORAGE_KEYS.CATEGORIES, categories);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_categories_changed', { detail: categories }));
+    }
+    return newCategory;
+  }
+
+  public deleteCategory(id: string): void {
+    const categories = this.getCategories().filter(c => c.id !== id);
+    this.setItem(STORAGE_KEYS.CATEGORIES, categories);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_categories_changed', { detail: categories }));
+    }
+  }
+
+  // Products & SKU Management
   public getProducts(): Product[] {
     this.init();
     return this.getItem<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
@@ -390,40 +459,85 @@ class StorageManager {
   public saveProduct(product: Product): Product {
     const products = this.getProducts();
     const index = products.findIndex(p => p.id === product.id);
+
+    // Auto generate SKU if not supplied
+    const sku = product.sku?.trim() || `SKU-${(product.category || 'GEN').slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+    const productToSave: Product = {
+      ...product,
+      sku,
+      id: product.id || 'p-' + Date.now(),
+      created_at: product.created_at || new Date().toISOString()
+    };
+
     if (index >= 0) {
-      products[index] = product;
+      products[index] = productToSave;
     } else {
-      products.unshift({
-        ...product,
-        id: product.id || 'p-' + Date.now()
-      });
+      products.unshift(productToSave);
     }
     this.setItem(STORAGE_KEYS.PRODUCTS, products);
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_products_changed', { detail: products }));
+    }
 
     // Sync to Supabase
     if (supabase) {
       supabase.from('products').upsert({
-        id: product.id,
-        name: product.name,
-        category: product.category,
-        unit_type: product.unit_type,
-        price_per_unit: product.price_per_unit,
-        cost_per_unit: product.cost_per_unit,
-        current_stock: product.current_stock,
-        image_emoji: product.image_emoji,
-        is_active: product.is_active
+        id: productToSave.id,
+        name: productToSave.name,
+        category: productToSave.category,
+        unit_type: productToSave.unit_type,
+        price_per_unit: productToSave.price_per_unit,
+        cost_per_unit: productToSave.cost_per_unit,
+        current_stock: productToSave.current_stock,
+        image_emoji: productToSave.image_emoji,
+        is_active: productToSave.is_active
       }).then();
     }
 
-    return product;
+    return productToSave;
   }
 
   public deleteProduct(id: string): void {
     const products = this.getProducts().filter(p => p.id !== id);
     this.setItem(STORAGE_KEYS.PRODUCTS, products);
 
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_products_changed', { detail: products }));
+    }
+
     if (supabase) {
       supabase.from('products').delete().eq('id', id).then();
+    }
+  }
+
+  public updateProductPrice(id: string, newPrice: number): void {
+    const products = this.getProducts();
+    const index = products.findIndex(p => p.id === id);
+    if (index >= 0) {
+      products[index].price_per_unit = newPrice;
+      this.setItem(STORAGE_KEYS.PRODUCTS, products);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pzt_products_changed', { detail: products }));
+      }
+      if (supabase) {
+        supabase.from('products').update({ price_per_unit: newPrice }).eq('id', id).then();
+      }
+    }
+  }
+
+  public updateProductStock(id: string, newStock: number): void {
+    const products = this.getProducts();
+    const index = products.findIndex(p => p.id === id);
+    if (index >= 0) {
+      products[index].current_stock = newStock;
+      this.setItem(STORAGE_KEYS.PRODUCTS, products);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('pzt_products_changed', { detail: products }));
+      }
+      if (supabase) {
+        supabase.from('products').update({ current_stock: newStock }).eq('id', id).then();
+      }
     }
   }
 

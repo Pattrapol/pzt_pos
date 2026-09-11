@@ -34,8 +34,17 @@ export interface Season {
   created_at: string;
 }
 
+export interface ProductCategory {
+  id: string;
+  name: string;
+  icon_emoji?: string;
+  created_at?: string;
+}
+
 export interface Product {
   id: string;
+  sku?: string;          // รหัส SKU เช่น SKU-DUR-001
+  barcode?: string;      // บาร์โค้ด (ถ้ามี)
   season_id?: string;
   name: string;
   category: string;
