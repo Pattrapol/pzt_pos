@@ -18,7 +18,9 @@ import {
   Trash2,
   Shield,
   KeyRound,
-  Lock
+  Lock,
+  Sparkles,
+  Rocket
 } from 'lucide-react';
 import RoleGuard from '@/components/RoleGuard';
 import AuthModal from '@/components/AuthModal';
@@ -53,7 +55,7 @@ export default function SettingsPage() {
     e.preventDefault();
     storage.saveSettings(settings);
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+    setTimeout(() => setSavedSuccess(false), 3000);
   };
 
   const handleResetDemo = () => {
@@ -61,6 +63,23 @@ export default function SettingsPage() {
       storage.resetToDemo();
       setSettings(storage.getSettings());
       alert('รีเซ็ตข้อมูลตัวอย่างเรียบร้อยแล้ว');
+      window.location.reload();
+    }
+  };
+
+  const handleGoLiveClean = () => {
+    const confirmed = confirm(
+      '⚠️ ยืนยันการล้างข้อมูลทดสอบทั้งหมดเพื่อเตรียมเปิดร้านจริง (Go-Live)?\n\n' +
+      '• ประวัติบิลขายทั้งหมดจะถูกล้าง (ยอดขายเริ่มต้น 0 บาท)\n' +
+      '• ข้อมูลล็อตรับเข้า, ค่าใช้จ่าย, และของเสียทดสอบจะถูกลบทั้งหมด\n' +
+      '• สต็อกผลไม้จะถูกรีเซ็ตเป็น 0 เพื่อรอรับทุเรียนล็อตจริง\n' +
+      '• บัญชีผู้ใช้งานและหมวดหมู่สินค้าจะยังคงอยู่\n\n' +
+      'ต้องการดำเนินการต่อหรือไม่?'
+    );
+
+    if (confirmed) {
+      storage.clearForGoLive({ resetStock: true });
+      alert('🚀 ล้างข้อมูลทดสอบเรียบร้อยแล้ว! ระบบ PZT Fruit POS พร้อมเปิดขายจริง (Go-Live) 100%');
       window.location.reload();
     }
   };
@@ -412,6 +431,31 @@ export default function SettingsPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Go-Live Clean Slate Area */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-linear-to-br from-emerald-950 via-slate-900 to-emerald-900 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-2 border-emerald-500/40">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-2xl">🚀</span>
+            <h3 className="text-xl font-black">ล้างข้อมูลทั้งหมดเพื่อเตรียมเปิดร้านจริง (Go-Live)</h3>
+            <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-400/40">
+              PRODUCTION READY
+            </span>
+          </div>
+          <p className="text-xs sm:text-sm text-emerald-100/80 max-w-xl font-medium leading-relaxed">
+            ล้างประวัติบิลขาย, รายจ่าย, ของเสีย, และล็อตทดสอบทั้งหมดให้ยอดเงินเป็น 0 บาท พร้อมรีเซ็ตสต็อกผลไม้เป็น 0 เพื่อรอรับของจริง โดยยังคงรายการสินค้าและบัญชีผู้ใช้งานไว้ให้เปิดร้านขายได้ทันที
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoLiveClean}
+          className="px-6 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-sm sm:text-base flex items-center gap-2 shadow-lg shadow-emerald-500/30 active:scale-95 transition-all shrink-0 cursor-pointer"
+        >
+          <Rocket className="h-5 w-5" />
+          <span>ล้างข้อมูลเพื่อเปิดร้านจริง</span>
+        </button>
       </div>
 
       {/* Backup & Demo Reset Area */}

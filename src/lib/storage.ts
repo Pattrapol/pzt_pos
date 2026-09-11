@@ -411,6 +411,45 @@ class StorageManager {
     this.setItem(STORAGE_KEYS.SEASONS, [DEFAULT_SEASON]);
   }
 
+  // Clear all test transactions and prepare for production Go-Live
+  public clearForGoLive(options?: { resetStock?: boolean }): void {
+    const shouldResetStock = options?.resetStock !== false;
+
+    // 1. Wipe all test transactions
+    this.setItem(STORAGE_KEYS.ORDERS, []);
+    this.setItem(STORAGE_KEYS.LOTS, []);
+    this.setItem(STORAGE_KEYS.EXPENSES, []);
+    this.setItem(STORAGE_KEYS.WASTE, []);
+
+    // 2. Reset product stock to 0 if desired
+    if (shouldResetStock) {
+      const currentProducts = this.getProducts();
+      const zeroStockProducts = currentProducts.map(p => ({
+        ...p,
+        current_stock: 0
+      }));
+      this.setItem(STORAGE_KEYS.PRODUCTS, zeroStockProducts);
+    }
+
+    // 3. Clear screen lock
+    this.setScreenLocked(false);
+
+    // 4. Sync clean state to Supabase Cloud if connected
+    if (supabase) {
+      try {
+        supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        supabase.from('debt_payments').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        supabase.from('expenses').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        supabase.from('waste_records').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        supabase.from('inbound_lots').delete().neq('id', '00000000-0000-0000-0000-000000000000').then();
+        if (shouldResetStock) {
+          supabase.from('products').update({ current_stock: 0 }).neq('id', '00000000-0000-0000-0000-000000000000').then();
+        }
+      } catch {}
+    }
+  }
+
   // Categories Management
   public getCategories(): ProductCategory[] {
     this.init();
