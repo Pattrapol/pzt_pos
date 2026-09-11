@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { StoreSettings } from '@/types/pos';
+import { StoreSettings, AppUser } from '@/types/pos';
 import { storage, DEFAULT_SETTINGS } from '@/lib/storage';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { 
@@ -11,16 +11,41 @@ import {
   Check, 
   RefreshCw, 
   Download, 
-  ExternalLink
+  ExternalLink,
+  Users,
+  UserPlus,
+  Trash2,
+  Shield,
+  KeyRound
 } from 'lucide-react';
+import RoleGuard from '@/components/RoleGuard';
+import AuthModal from '@/components/AuthModal';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_SETTINGS);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const loadData = () => {
+    setSettings(storage.getSettings());
+    setUsers(storage.getUsers());
+  };
 
   useEffect(() => {
-    setSettings(storage.getSettings());
+    loadData();
   }, []);
+
+  const handleDeleteUser = (id: string, name: string) => {
+    if (confirm(`คุณต้องการลบพนักงาน/ผู้ใช้งาน "${name}" หรือไม่?`)) {
+      try {
+        storage.deleteUser(id);
+        loadData();
+      } catch (err: unknown) {
+        alert(err instanceof Error ? err.message : 'ไม่สามารถลบได้');
+      }
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +83,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="space-y-8 pb-16 max-w-4xl mx-auto">
+    <RoleGuard allowedRoles={['super_admin']}>
+      <div className="space-y-8 pb-16 max-w-4xl mx-auto">
       
       {/* Header */}
       <div>
@@ -280,6 +306,77 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Staff & User Management Area (Super Admin only) */}
+      <div className="p-6 sm:p-8 rounded-3xl bg-white border-2 border-slate-200 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Users className="h-6 w-6 text-emerald-600" />
+              <span>จัดการรายชื่อพนักงาน & สิทธิ์สมาชิก (ROLE)</span>
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+              กำหนดสิทธิ์ <strong>คนงาน</strong> (เห็นเฉพาะหน้าขายและบิล) หรือ <strong>super ADMIN</strong> (เห็นข้อมูลการเงินและตั้งค่า)
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAuthModalOpen(true)}
+            className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all shrink-0"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>+ เพิ่มพนักงาน / สมัครสมาชิก</span>
+          </button>
+        </div>
+
+        {/* User List Table / Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {users.map((u) => {
+            const isSuper = u.role === 'super_admin';
+            return (
+              <div
+                key={u.id}
+                className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <span className="text-3xl p-2 rounded-2xl bg-white border border-slate-200 shrink-0">
+                    {u.avatar_emoji || (isSuper ? '👑' : '👷‍♂️')}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-black text-slate-900 text-base truncate flex items-center gap-1.5">
+                      <span>{u.name}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 font-semibold flex items-center gap-2 mt-0.5">
+                      <span>ชื่อล็อกอิน: <strong>{u.username}</strong></span>
+                      <span>•</span>
+                      <span>PIN: <strong>{u.pin}</strong></span>
+                    </div>
+                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase mt-1.5 ${
+                      isSuper 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-amber-100 text-amber-900'
+                    }`}>
+                      {isSuper ? '👑 super ADMIN' : '👷‍♂️ คนงาน (Worker)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Delete button (cannot delete if only 1 super_admin left) */}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteUser(u.id, u.name)}
+                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors shrink-0"
+                  title="ลบพนักงานคนนี้"
+                  aria-label="ลบ"
+                >
+                  <Trash2 className="h-5 w-5" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Backup & Demo Reset Area */}
       <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
@@ -308,6 +405,17 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => {
+          setIsAuthModalOpen(false);
+          loadData();
+        }}
+        currentUser={null}
+        onUserChanged={() => loadData()}
+      />
+
     </div>
+  </RoleGuard>
   );
 }

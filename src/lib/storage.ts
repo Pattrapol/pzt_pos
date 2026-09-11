@@ -8,7 +8,9 @@ import {
   Order, 
   StoreSettings, 
   Season,
-  PaymentMethod
+  PaymentMethod,
+  AppUser,
+  UserRole
 } from '@/types/pos';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -20,7 +22,30 @@ const STORAGE_KEYS = {
   ORDERS: 'pzt_pos_orders_v1',
   SETTINGS: 'pzt_pos_settings_v1',
   SEASONS: 'pzt_pos_seasons_v1',
+  APP_USERS: 'pzt_pos_users_v1',
+  CURRENT_USER: 'pzt_pos_current_user_v1',
 };
+
+export const DEFAULT_USERS: AppUser[] = [
+  {
+    id: 'u-admin',
+    name: 'เถ้าแก่ (เจ้าของร้าน)',
+    username: 'admin',
+    pin: '1234',
+    role: 'super_admin',
+    avatar_emoji: '👑',
+    created_at: new Date('2026-01-01T00:00:00Z').toISOString()
+  },
+  {
+    id: 'u-worker-1',
+    name: 'สมชาย (แคชเชียร์/คนงาน)',
+    username: 'worker',
+    pin: '1111',
+    role: 'worker',
+    avatar_emoji: '👷‍♂️',
+    created_at: new Date('2026-01-01T00:00:00Z').toISOString()
+  }
+];
 
 export const DEFAULT_SETTINGS: StoreSettings = {
   store_name: 'สวนทุเรียน & ผลไม้สด พรีเมียม (PZT FRUIT)',
@@ -311,6 +336,12 @@ class StorageManager {
     }
     if (!localStorage.getItem(STORAGE_KEYS.SEASONS)) {
       this.setItem(STORAGE_KEYS.SEASONS, [DEFAULT_SEASON]);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.APP_USERS)) {
+      this.setItem(STORAGE_KEYS.APP_USERS, DEFAULT_USERS);
+    }
+    if (!localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) {
+      this.setItem(STORAGE_KEYS.CURRENT_USER, DEFAULT_USERS[0]);
     }
 
     // Trigger cloud sync in background if Supabase is connected
@@ -752,6 +783,111 @@ class StorageManager {
       ordersCount: orders.length,
       unpaidOrdersCount: orders.filter(o => o.payment_status === 'pending').length
     };
+  }
+
+  // ==================== USER AUTH & ROLE MANAGEMENT ====================
+
+  public getUsers(): AppUser[] {
+    this.init();
+    return this.getItem<AppUser[]>(STORAGE_KEYS.APP_USERS, DEFAULT_USERS);
+  }
+
+  public createUser(userData: Omit<AppUser, 'id' | 'created_at'>): AppUser {
+    const users = this.getUsers();
+    
+    // Check duplicate username
+    const exists = users.some(u => u.username.toLowerCase() === userData.username.trim().toLowerCase());
+    if (exists) {
+      throw new Error(`ชื่อผู้ใช้ "${userData.username}" มีในระบบแล้ว กรุณาใช้ชื่ออื่น`);
+    }
+
+    const newUser: AppUser = {
+      ...userData,
+      id: 'usr-' + Date.now(),
+      name: userData.name.trim(),
+      username: userData.username.trim().toLowerCase(),
+      pin: userData.pin.trim(),
+      avatar_emoji: userData.avatar_emoji || (userData.role === 'super_admin' ? '👑' : '👷‍♂️'),
+      created_at: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    this.setItem(STORAGE_KEYS.APP_USERS, users);
+
+    // Live Sync to Supabase table app_users if configured
+    if (supabase) {
+      supabase.from('app_users').insert({
+        name: newUser.name,
+        username: newUser.username,
+        pin: newUser.pin,
+        role: newUser.role,
+        avatar_emoji: newUser.avatar_emoji
+      }).then();
+    }
+
+    return newUser;
+  }
+
+  public deleteUser(id: string): void {
+    const users = this.getUsers();
+    const target = users.find(u => u.id === id);
+    if (!target) return;
+
+    // Prevent deleting the last super_admin
+    const superAdmins = users.filter(u => u.role === 'super_admin');
+    if (target.role === 'super_admin' && superAdmins.length <= 1) {
+      throw new Error('ไม่สามารถลบ super ADMIN คนสุดท้ายของระบบได้');
+    }
+
+    const updated = users.filter(u => u.id !== id);
+    this.setItem(STORAGE_KEYS.APP_USERS, updated);
+
+    // If current user is deleted, switch to first available user
+    const current = this.getCurrentUser();
+    if (current && current.id === id) {
+      this.setCurrentUser(updated[0] || DEFAULT_USERS[0]);
+    }
+  }
+
+  public getCurrentUser(): AppUser {
+    this.init();
+    const user = this.getItem<AppUser | null>(STORAGE_KEYS.CURRENT_USER, null);
+    if (!user) {
+      this.setCurrentUser(DEFAULT_USERS[0]);
+      return DEFAULT_USERS[0];
+    }
+    return user;
+  }
+
+  public setCurrentUser(user: AppUser | null): void {
+    const targetUser = user || DEFAULT_USERS[1]; // fallback to worker
+    this.setItem(STORAGE_KEYS.CURRENT_USER, targetUser);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_auth_changed', { detail: targetUser }));
+    }
+  }
+
+  public authenticate(usernameOrPhone: string, pin: string): AppUser | null {
+    const users = this.getUsers();
+    const cleanInput = usernameOrPhone.trim().toLowerCase();
+    const cleanPin = pin.trim();
+
+    const matched = users.find(
+      u => u.username.toLowerCase() === cleanInput && u.pin === cleanPin
+    );
+
+    if (matched) {
+      this.setCurrentUser(matched);
+      return matched;
+    }
+    return null;
+  }
+
+  public logout(): void {
+    // On logout, default to worker or first available user
+    const users = this.getUsers();
+    const worker = users.find(u => u.role === 'worker') || users[0];
+    this.setCurrentUser(worker);
   }
 }
 

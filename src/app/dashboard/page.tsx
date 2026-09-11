@@ -13,6 +13,7 @@ import {
   PieChart
 } from 'lucide-react';
 import Link from 'next/link';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function DashboardPage() {
   const [summary, setSummary] = useState<ReturnType<typeof storage.getFinancialSummary> | null>(null);
@@ -28,7 +29,8 @@ export default function DashboardPage() {
   const isProfit = summary.netProfit >= 0;
 
   return (
-    <div className="space-y-8 pb-12">
+    <RoleGuard allowedRoles={['super_admin']}>
+      <div className="space-y-8 pb-12">
       
       {/* Top Title & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -309,7 +311,7 @@ export default function DashboardPage() {
           </table>
         </div>
       </div>
-
     </div>
-  );
+  </RoleGuard>
+);
 }

@@ -8,6 +8,7 @@ import {
   Plus, 
   Trash2
 } from 'lucide-react';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function LotsPage() {
   const [lots, setLots] = useState<InboundLot[]>([]);
@@ -75,7 +76,8 @@ export default function LotsPage() {
   const averageCostPerKg = totalLotWeight > 0 ? Math.round((totalLotCost / totalLotWeight) * 100) / 100 : 0;
 
   return (
-    <div className="space-y-6 pb-12">
+    <RoleGuard allowedRoles={['super_admin']}>
+      <div className="space-y-6 pb-12">
       
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -321,7 +323,7 @@ export default function LotsPage() {
           </table>
         </div>
       </div>
-
     </div>
-  );
+  </RoleGuard>
+);
 }

@@ -14,6 +14,7 @@ import {
   Layers, 
   HelpCircle 
 } from 'lucide-react';
+import RoleGuard from '@/components/RoleGuard';
 
 export default function ExpensesPage() {
   const [activeTab, setActiveTab] = useState<'expenses' | 'waste'>('expenses');
@@ -116,7 +117,8 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <RoleGuard allowedRoles={['super_admin']}>
+      <div className="space-y-6 pb-12">
       
       {/* Page Header */}
       <div>
@@ -475,7 +477,7 @@ export default function ExpensesPage() {
 
         </div>
       )}
-
     </div>
-  );
+  </RoleGuard>
+);
 }

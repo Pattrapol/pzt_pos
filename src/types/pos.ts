@@ -10,6 +10,18 @@ export type ExpenseCategory = 'labor' | 'transport' | 'packaging' | 'stall_rent'
 
 export type WasteType = 'spoilage' | 'damaged' | 'peel_loss' | 'grade_drop';
 
+export type UserRole = 'worker' | 'super_admin';
+
+export interface AppUser {
+  id: string;
+  name: string;
+  username: string;
+  pin: string;
+  role: UserRole;
+  avatar_emoji?: string;
+  created_at: string;
+}
+
 export interface Season {
   id: string;
   name: string;
