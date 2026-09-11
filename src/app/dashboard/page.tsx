@@ -50,20 +50,21 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Main KPI Financial Cards - Clean White Minimalist */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* Main KPI Financial Cards - Clean Minimalist, Responsive for all viewports */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
         
         {/* 1. Total Revenue */}
-        <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-emerald-500 transition-all">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-emerald-500 transition-all">
           <div className="flex items-center justify-between text-slate-600 text-sm font-bold">
             <span>ยอดขายรวมทั้งหมด</span>
             <div className="p-2.5 rounded-2xl bg-emerald-50 text-emerald-700">
               <DollarSign className="h-5 w-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-3xl sm:text-4xl font-black font-mono text-slate-900">
-              ฿{summary.totalRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+          <div className="mt-3 flex items-baseline overflow-hidden">
+            <span className="text-xl sm:text-2xl font-black text-slate-400 mr-1 font-sans">฿</span>
+            <span className="text-2xl sm:text-3xl lg:text-4xl font-black font-mono text-slate-900 tracking-tight truncate">
+              {summary.totalRevenue.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="mt-2 text-xs font-bold flex justify-between text-slate-500 pt-2 border-t border-slate-100">
@@ -75,16 +76,17 @@ export default function DashboardPage() {
         </div>
 
         {/* 2. Total Fruit Cost (Purchases) */}
-        <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-emerald-500 transition-all">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-emerald-500 transition-all">
           <div className="flex items-center justify-between text-slate-600 text-sm font-bold">
             <span>ต้นทุนรับซื้อผลไม้</span>
             <div className="p-2.5 rounded-2xl bg-amber-50 text-amber-700">
               <Truck className="h-5 w-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-3xl sm:text-4xl font-black font-mono text-amber-700">
-              ฿{summary.totalLotCost.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+          <div className="mt-3 flex items-baseline overflow-hidden">
+            <span className="text-xl sm:text-2xl font-black text-amber-600/70 mr-1 font-sans">฿</span>
+            <span className="text-2xl sm:text-3xl lg:text-4xl font-black font-mono text-amber-700 tracking-tight truncate">
+              {summary.totalLotCost.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="mt-2 text-xs font-bold text-slate-500 pt-2 border-t border-slate-100">
@@ -93,16 +95,17 @@ export default function DashboardPage() {
         </div>
 
         {/* 3. Operational Expenses & Waste */}
-        <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-red-400 transition-all">
+        <div className="p-5 sm:p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs hover:border-red-400 transition-all">
           <div className="flex items-center justify-between text-slate-600 text-sm font-bold">
             <span>ค่าใช้จ่ายเสริม + ของเสีย</span>
             <div className="p-2.5 rounded-2xl bg-red-50 text-red-600">
               <AlertOctagon className="h-5 w-5" />
             </div>
           </div>
-          <div className="mt-3">
-            <span className="text-3xl sm:text-4xl font-black font-mono text-red-600">
-              ฿{(summary.totalExpenses + summary.totalWasteLoss).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+          <div className="mt-3 flex items-baseline overflow-hidden">
+            <span className="text-xl sm:text-2xl font-black text-red-400 mr-1 font-sans">฿</span>
+            <span className="text-2xl sm:text-3xl lg:text-4xl font-black font-mono text-red-600 tracking-tight truncate">
+              {(summary.totalExpenses + summary.totalWasteLoss).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="mt-2 text-xs font-bold flex justify-between text-slate-500 pt-2 border-t border-slate-100">
@@ -111,30 +114,33 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* 4. NET PROFIT (HERO CARD) - Big Emerald Highlights */}
-        <div className={`p-6 rounded-3xl border-2 shadow-sm transition-all ${
+        {/* 4. NET PROFIT (HERO CARD) */}
+        <div className={`p-5 sm:p-6 rounded-3xl border-2 shadow-sm transition-all overflow-hidden ${
           isProfit 
             ? 'bg-emerald-50/80 border-emerald-400' 
             : 'bg-red-50/80 border-red-300'
         }`}>
-          <div className="flex items-center justify-between text-slate-800 text-sm font-black">
-            <span>กำไรสุทธิ (Net Profit)</span>
-            <span className={`px-3 py-1 rounded-full text-xs font-black ${
+          <div className="flex items-center justify-between text-slate-800 text-sm font-black gap-2">
+            <span className="truncate">กำไรสุทธิ (Net Profit)</span>
+            <span className={`px-2.5 py-1 rounded-full text-xs font-black whitespace-nowrap shrink-0 ${
               isProfit ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
             }`}>
-              กำไร {summary.profitMargin}%
+              {isProfit ? `กำไร +${summary.profitMargin}%` : `ขาดทุน ${Math.abs(summary.profitMargin)}%`}
             </span>
           </div>
-          <div className="mt-3">
-            <span className={`text-4xl sm:text-5xl font-black font-mono ${
+          <div className="mt-3 flex items-baseline overflow-hidden">
+            <span className={`text-xl sm:text-2xl font-black mr-1 font-sans ${
+              isProfit ? 'text-emerald-700' : 'text-red-500'
+            }`}>฿</span>
+            <span className={`text-2xl sm:text-3xl lg:text-4xl font-black font-mono tracking-tight truncate ${
               isProfit ? 'text-emerald-800' : 'text-red-700'
             }`}>
-              ฿{summary.netProfit.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+              {summary.netProfit.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
             </span>
           </div>
           <div className="mt-2 text-xs font-bold text-slate-600 pt-2 border-t border-emerald-200/80 flex items-center gap-1.5">
-            <Sparkles className="h-4 w-4 text-emerald-600" />
-            <span>คำนวณจากยอดขายจริงลบต้นทุนทั้งหมด</span>
+            <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="truncate">คำนวณจากยอดขายจริงลบต้นทุนทั้งหมด</span>
           </div>
         </div>
 
