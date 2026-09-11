@@ -11,6 +11,8 @@ import {
   Settings, 
   Layers, 
   Boxes,
+  Users,
+  Lock,
   Menu, 
   X,
   Database,
@@ -28,6 +30,7 @@ import { storage } from '@/lib/storage';
 import { AppUser } from '@/types/pos';
 import ShiftSummaryModal from './ShiftSummaryModal';
 import AuthModal from './AuthModal';
+import ScreenLockModal from './ScreenLockModal';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -37,6 +40,7 @@ export default function Navbar() {
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
+  const [isLocked, setIsLocked] = useState(false);
 
   useEffect(() => {
     setSoundOn(isSoundEnabled());
@@ -46,8 +50,9 @@ export default function Navbar() {
       document.documentElement.classList.add('large-text-mode');
     }
 
-    // Load initial user
+    // Load initial user & lock state
     setCurrentUser(storage.getCurrentUser());
+    setIsLocked(storage.isScreenLocked());
 
     // Listen to real-time auth changes
     const handleAuthChanged = (e: Event) => {
@@ -55,8 +60,18 @@ export default function Navbar() {
       setCurrentUser(customEvent.detail || storage.getCurrentUser());
     };
 
+    // Listen to screen lock events
+    const handleScreenLocked = (e: Event) => {
+      const customEvent = e as CustomEvent<boolean>;
+      setIsLocked(customEvent.detail);
+    };
+
     window.addEventListener('pzt_auth_changed', handleAuthChanged);
-    return () => window.removeEventListener('pzt_auth_changed', handleAuthChanged);
+    window.addEventListener('pzt_screen_locked', handleScreenLocked);
+    return () => {
+      window.removeEventListener('pzt_auth_changed', handleAuthChanged);
+      window.removeEventListener('pzt_screen_locked', handleScreenLocked);
+    };
   }, []);
 
   const handleToggleSound = () => {
@@ -84,6 +99,7 @@ export default function Navbar() {
   const allNavItems = [
     { label: 'ขายหน้าร้าน', href: '/', icon: ShoppingBag, roles: ['worker', 'super_admin'] },
     { label: 'สินค้า & SKU', href: '/products', icon: Boxes, roles: ['super_admin'] },
+    { label: 'พนักงาน & สิทธิ์', href: '/users', icon: Users, roles: ['super_admin'] },
     { label: 'กำไร-ขาดทุน', href: '/dashboard', icon: BarChart3, roles: ['super_admin'] },
     { label: 'ล็อต & ต้นทุน', href: '/lots', icon: Truck, roles: ['super_admin'] },
     { label: 'รายจ่าย & ของเสีย', href: '/expenses', icon: Layers, roles: ['super_admin'] },
@@ -176,6 +192,20 @@ export default function Navbar() {
               }`}>
                 {isSuperAdmin ? 'ADMIN' : 'คนงาน'}
               </span>
+            </button>
+
+            {/* Quick Screen Lock Button */}
+            <button
+              type="button"
+              onClick={() => {
+                playBeep(600, 0.05);
+                storage.setScreenLocked(true);
+                setIsLocked(true);
+              }}
+              className="p-2 sm:p-2.5 rounded-2xl bg-slate-100 hover:bg-amber-50 hover:text-amber-800 text-slate-600 border border-slate-200 transition-all active:scale-95 shrink-0"
+              title="ล็อกหน้าจอชั่วคราว (Screen Lock)"
+            >
+              <Lock className="h-4 w-4" />
             </button>
 
             {/* Quick Shift Report Trigger Button (hidden on small phone header, available in drawer & bottom nav) */}
@@ -283,6 +313,21 @@ export default function Navbar() {
                 <span>{largeFont ? 'ลดขนาดตัวอักษร' : 'ขยายตัวหนังสือ'}</span>
               </button>
             </div>
+
+            {/* Quick Lock Screen for Mobile */}
+            <button
+              type="button"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                playBeep(600, 0.05);
+                storage.setScreenLocked(true);
+                setIsLocked(true);
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl bg-slate-100 hover:bg-amber-50 text-slate-700 border border-slate-200 text-xs font-bold active:scale-95 transition-all"
+            >
+              <Lock className="h-4 w-4 text-amber-600" />
+              <span>ล็อกหน้าจอชั่วคราว (Screen Lock)</span>
+            </button>
 
             {/* Shift Report Quick Button */}
             <button
@@ -443,7 +488,7 @@ export default function Navbar() {
                   setMobileMenuOpen(!mobileMenuOpen);
                 }}
                 className={`flex flex-col items-center justify-center py-1 px-2 rounded-2xl min-w-[54px] transition-all active:scale-95 ${
-                  mobileMenuOpen || pathname === '/expenses' || pathname === '/settings' || pathname === '/products'
+                  mobileMenuOpen || pathname === '/expenses' || pathname === '/settings' || pathname === '/products' || pathname === '/users'
                     ? 'text-emerald-700 font-black'
                     : 'text-slate-500 font-medium'
                 }`}
@@ -470,6 +515,15 @@ export default function Navbar() {
         onClose={() => setIsAuthModalOpen(false)}
         currentUser={currentUser}
         onUserChanged={(u) => setCurrentUser(u)}
+      />
+
+      {/* Full-Screen Lock Overlay */}
+      <ScreenLockModal
+        isLocked={isLocked}
+        onUnlocked={(u) => {
+          setIsLocked(false);
+          setCurrentUser(u);
+        }}
       />
     </>
   );

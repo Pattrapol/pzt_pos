@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { StoreSettings, AppUser } from '@/types/pos';
 import { storage, DEFAULT_SETTINGS } from '@/lib/storage';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -16,7 +17,8 @@ import {
   UserPlus,
   Trash2,
   Shield,
-  KeyRound
+  KeyRound,
+  Lock
 } from 'lucide-react';
 import RoleGuard from '@/components/RoleGuard';
 import AuthModal from '@/components/AuthModal';
@@ -253,6 +255,32 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* Security / Admin Master PIN */}
+        <div className="border-t border-slate-100 pt-6">
+          <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 mb-4">
+            <Lock className="h-6 w-6 text-purple-600" />
+            <span>ความปลอดภัย & รหัสลับเจ้าของร้าน (Admin Master PIN)</span>
+          </h2>
+
+          <div className="p-4 rounded-2xl bg-purple-50/70 border border-purple-200">
+            <label className="text-sm font-bold text-purple-950 block mb-1">
+              รหัสลับเจ้าของร้าน (4-8 หลัก)
+            </label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={8}
+              placeholder="1234"
+              value={settings.admin_master_pin || '1234'}
+              onChange={(e) => setSettings({ ...settings, admin_master_pin: e.target.value })}
+              className="w-full sm:w-64 px-4 py-2.5 text-lg font-mono font-black rounded-xl bg-white border border-purple-300 text-purple-950 focus:outline-none focus:border-purple-600"
+            />
+            <span className="text-xs text-purple-800 font-medium mt-1.5 block">
+              * ใช้สำหรับอนุมัติการสมัครเป็น super ADMIN หรือปลดล็อกหน้าจอฉุกเฉิน
+            </span>
+          </div>
+        </div>
+
         {/* Form Submit */}
         <div className="flex items-center justify-between pt-4 border-t border-slate-100">
           {savedSuccess ? (
@@ -319,14 +347,23 @@ export default function SettingsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setIsAuthModalOpen(true)}
-            className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all shrink-0"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span>+ เพิ่มพนักงาน / สมัครสมาชิก</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <Link
+              href="/users"
+              className="px-3.5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-bold flex items-center gap-2 border border-slate-300 active:scale-98 transition-all shadow-2xs"
+            >
+              <span>เปิดหน้าจัดการพนักงานเต็มจอ →</span>
+            </Link>
+
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-4 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>+ เพิ่มพนักงาน</span>
+            </button>
+          </div>
         </div>
 
         {/* User List Table / Cards */}

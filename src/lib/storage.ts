@@ -26,6 +26,7 @@ const STORAGE_KEYS = {
   SEASONS: 'pzt_pos_seasons_v1',
   APP_USERS: 'pzt_pos_users_v1',
   CURRENT_USER: 'pzt_pos_current_user_v1',
+  SCREEN_LOCKED: 'pzt_pos_screen_locked_v1',
 };
 
 export const DEFAULT_USERS: AppUser[] = [
@@ -33,18 +34,22 @@ export const DEFAULT_USERS: AppUser[] = [
     id: 'u-admin',
     name: 'เถ้าแก่ (เจ้าของร้าน)',
     username: 'admin',
+    phone: '081-234-5678',
     pin: '1234',
     role: 'super_admin',
     avatar_emoji: '👑',
+    is_active: true,
     created_at: new Date('2026-01-01T00:00:00Z').toISOString()
   },
   {
     id: 'u-worker-1',
     name: 'สมชาย (แคชเชียร์/คนงาน)',
     username: 'worker',
+    phone: '089-999-8888',
     pin: '1111',
     role: 'worker',
     avatar_emoji: '👷‍♂️',
+    is_active: true,
     created_at: new Date('2026-01-01T00:00:00Z').toISOString()
   }
 ];
@@ -57,7 +62,8 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   promptpay_type: 'mobile',
   address: '123/4 หมู่ 5 ถ.สุขุมวิท ต.ทางเกวียน อ.แกลง จ.ระยอง',
   receipt_footer: 'ขอบคุณที่อุดหนุนผลไม้สดจากสวนแท้ 100% | มีปัญหาทุเรียนอ่อน/เคลมได้ภายใน 24 ชม.',
-  tax_id: '0105559999888'
+  tax_id: '0105559999888',
+  admin_master_pin: '1234'
 };
 
 export const DEFAULT_SEASON: Season = {
@@ -386,6 +392,9 @@ class StorageManager {
       if (dbSettings && dbSettings.length > 0) {
         this.setItem(STORAGE_KEYS.SETTINGS, dbSettings[0]);
       }
+
+      // Sync users across devices
+      await this.syncUsersWithSupabase();
     } catch (err) {
       console.warn('Supabase initial sync skipped, using cached data.', err);
     }
@@ -683,10 +692,13 @@ class StorageManager {
     const seq = (orders.length + 1).toString().padStart(3, '0');
     const order_number = `POS-${dateStr}-${seq}`;
 
+    const current = this.getCurrentUser();
     const newOrder: Order = {
       ...orderData,
       id: 'ord-' + Date.now(),
       order_number,
+      cashier_id: orderData.cashier_id || current?.id || 'u-worker-1',
+      cashier_name: orderData.cashier_name || current?.name || 'พนักงานขาย',
       created_at: new Date().toISOString()
     };
 
@@ -706,6 +718,9 @@ class StorageManager {
     // Live Sync Order to Supabase Cloud
     const client = supabase;
     if (client) {
+      const cashierNote = `[แคชเชียร์: ${newOrder.cashier_name}]`;
+      const combinedNotes = newOrder.notes ? `${newOrder.notes} ${cashierNote}` : cashierNote;
+
       client.from('orders').insert({
         order_number: newOrder.order_number,
         customer_name: newOrder.customer_name,
@@ -719,7 +734,7 @@ class StorageManager {
         cash_received: newOrder.cash_received || null,
         change_given: newOrder.change_given || null,
         due_date: newOrder.due_date || null,
-        notes: newOrder.notes || null,
+        notes: combinedNotes,
       }).select().then(({ data: ordData, error }) => {
         if (!error && ordData && ordData[0]) {
           newOrder.synced = true;
@@ -756,21 +771,24 @@ class StorageManager {
     let syncedCount = 0;
     for (const ord of unsynced) {
       try {
-        const { data: ordData, error } = await supabase.from('orders').insert({
-          order_number: ord.order_number,
-          customer_name: ord.customer_name,
-          customer_phone: ord.customer_phone || null,
-          customer_type: ord.customer_type,
-          subtotal: ord.subtotal,
-          discount: ord.discount,
-          total_amount: ord.total_amount,
-          payment_method: ord.payment_method,
-          payment_status: ord.payment_status,
-          cash_received: ord.cash_received || null,
-          change_given: ord.change_given || null,
-          due_date: ord.due_date || null,
-          notes: ord.notes || null,
-        }).select();
+          const cashierNote = ord.cashier_name ? `[แคชเชียร์: ${ord.cashier_name}]` : '';
+          const finalNote = [ord.notes, cashierNote].filter(Boolean).join(' ');
+
+          const { data: ordData, error } = await supabase.from('orders').insert({
+            order_number: ord.order_number,
+            customer_name: ord.customer_name,
+            customer_phone: ord.customer_phone || null,
+            customer_type: ord.customer_type,
+            subtotal: ord.subtotal,
+            discount: ord.discount,
+            total_amount: ord.total_amount,
+            payment_method: ord.payment_method,
+            payment_status: ord.payment_status,
+            cash_received: ord.cash_received || null,
+            change_given: ord.change_given || null,
+            due_date: ord.due_date || null,
+            notes: finalNote || null,
+          }).select();
 
         if (!error && ordData && ordData[0]) {
           ord.synced = true;
@@ -901,9 +919,15 @@ class StorageManager {
 
   // ==================== USER AUTH & ROLE MANAGEMENT ====================
 
+  private readonly USERS_SYNC_UUID = '00000000-0000-0000-0000-000000000001';
+
   public getUsers(): AppUser[] {
     this.init();
     return this.getItem<AppUser[]>(STORAGE_KEYS.APP_USERS, DEFAULT_USERS);
+  }
+
+  public getActiveUsers(): AppUser[] {
+    return this.getUsers().filter(u => u.is_active !== false);
   }
 
   public createUser(userData: Omit<AppUser, 'id' | 'created_at'>): AppUser {
@@ -920,26 +944,88 @@ class StorageManager {
       id: 'usr-' + Date.now(),
       name: userData.name.trim(),
       username: userData.username.trim().toLowerCase(),
+      phone: userData.phone?.trim() || undefined,
       pin: userData.pin.trim(),
+      role: userData.role,
       avatar_emoji: userData.avatar_emoji || (userData.role === 'super_admin' ? '👑' : '👷‍♂️'),
+      is_active: userData.is_active ?? true,
       created_at: new Date().toISOString()
     };
 
     users.push(newUser);
     this.setItem(STORAGE_KEYS.APP_USERS, users);
 
-    // Live Sync to Supabase table app_users if configured
-    if (supabase) {
-      supabase.from('app_users').insert({
-        name: newUser.name,
-        username: newUser.username,
-        pin: newUser.pin,
-        role: newUser.role,
-        avatar_emoji: newUser.avatar_emoji
-      }).then();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_users_changed', { detail: users }));
     }
 
+    // Push sync to Supabase
+    this.pushUsersToSupabase(users);
+
     return newUser;
+  }
+
+  public updateUser(id: string, updates: Partial<AppUser>): AppUser {
+    const users = this.getUsers();
+    const index = users.findIndex(u => u.id === id);
+    if (index === -1) {
+      throw new Error('ไม่พบข้อมูลผู้ใช้งานที่ต้องการแก้ไข');
+    }
+
+    const current = users[index];
+
+    // Check username collision if changed
+    if (updates.username && updates.username.trim().toLowerCase() !== current.username.toLowerCase()) {
+      const exists = users.some(u => u.id !== id && u.username.toLowerCase() === updates.username!.trim().toLowerCase());
+      if (exists) {
+        throw new Error(`ชื่อผู้ใช้ "${updates.username}" ถูกใช้งานแล้ว`);
+      }
+    }
+
+    const updatedUser: AppUser = {
+      ...current,
+      ...updates,
+      name: updates.name !== undefined ? updates.name.trim() : current.name,
+      username: updates.username !== undefined ? updates.username.trim().toLowerCase() : current.username,
+      pin: updates.pin !== undefined ? updates.pin.trim() : current.pin,
+      phone: updates.phone !== undefined ? updates.phone.trim() : current.phone,
+      role: updates.role || current.role,
+      avatar_emoji: updates.avatar_emoji || current.avatar_emoji,
+      is_active: updates.is_active !== undefined ? updates.is_active : (current.is_active ?? true)
+    };
+
+    // If removing super_admin status, ensure at least one super_admin remains
+    if (current.role === 'super_admin' && updatedUser.role !== 'super_admin') {
+      const remainingAdmins = users.filter(u => u.id !== id && u.role === 'super_admin' && u.is_active !== false);
+      if (remainingAdmins.length === 0) {
+        throw new Error('ระบบต้องมี super ADMIN ที่เปิดใช้งานอย่างน้อย 1 คน');
+      }
+    }
+
+    users[index] = updatedUser;
+    this.setItem(STORAGE_KEYS.APP_USERS, users);
+
+    // If current logged-in user was updated, refresh current user state
+    const loggedIn = this.getCurrentUser();
+    if (loggedIn && loggedIn.id === id) {
+      this.setCurrentUser(updatedUser);
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_users_changed', { detail: users }));
+    }
+
+    this.pushUsersToSupabase(users);
+
+    return updatedUser;
+  }
+
+  public toggleUserActive(id: string): boolean {
+    const user = this.getUsers().find(u => u.id === id);
+    if (!user) return false;
+    const nextState = user.is_active === false;
+    this.updateUser(id, { is_active: nextState });
+    return nextState;
   }
 
   public deleteUser(id: string): void {
@@ -961,6 +1047,149 @@ class StorageManager {
     if (current && current.id === id) {
       this.setCurrentUser(updated[0] || DEFAULT_USERS[0]);
     }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_users_changed', { detail: updated }));
+    }
+
+    this.pushUsersToSupabase(updated);
+  }
+
+  public verifyAdminMasterPin(pin: string): boolean {
+    const settings = this.getSettings();
+    const masterPin = settings.admin_master_pin || '1234';
+    return pin.trim() === masterPin.trim();
+  }
+
+  // Cloud Sync for Users across all devices
+  public async syncUsersWithSupabase(): Promise<AppUser[]> {
+    if (!supabase) return this.getUsers();
+
+    try {
+      // 1. Try reading from dedicated app_users table first
+      const { data: dbUsers, error: tableError } = await supabase.from('app_users').select('*');
+      if (!tableError && dbUsers && dbUsers.length > 0) {
+        const mappedUsers: AppUser[] = dbUsers.map(u => ({
+          id: u.id ? String(u.id) : 'usr-' + Math.random().toString(36).slice(2, 8),
+          name: u.name,
+          username: u.username,
+          phone: u.phone,
+          pin: u.pin,
+          role: u.role,
+          avatar_emoji: u.avatar_emoji,
+          is_active: u.is_active ?? true,
+          created_at: u.created_at || new Date().toISOString()
+        }));
+        this.setItem(STORAGE_KEYS.APP_USERS, mappedUsers);
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('pzt_users_changed', { detail: mappedUsers }));
+        }
+        return mappedUsers;
+      }
+
+      // 2. Fallback channel: sync via seasons with designated UUID
+      const { data: syncRow } = await supabase
+        .from('seasons')
+        .select('notes')
+        .eq('id', this.USERS_SYNC_UUID)
+        .maybeSingle();
+
+      if (syncRow && syncRow.notes) {
+        const remoteUsers = JSON.parse(syncRow.notes);
+        if (Array.isArray(remoteUsers) && remoteUsers.length > 0) {
+          this.setItem(STORAGE_KEYS.APP_USERS, remoteUsers);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('pzt_users_changed', { detail: remoteUsers }));
+          }
+          return remoteUsers;
+        }
+      } else {
+        // First time cloud initialization: push current local users to Supabase
+        await this.pushUsersToSupabase(this.getUsers());
+      }
+    } catch (err) {
+      console.warn('Users cloud sync skipped (offline or uninitialized).', err);
+    }
+
+    return this.getUsers();
+  }
+
+  private async pushUsersToSupabase(users: AppUser[]): Promise<void> {
+    if (!supabase) return;
+    try {
+      // Upsert to seasons sync channel
+      await supabase.from('seasons').upsert({
+        id: this.USERS_SYNC_UUID,
+        name: 'APP_USERS_SYNC',
+        year: 2026,
+        start_date: '2026-01-01',
+        status: 'active',
+        budget: 0,
+        notes: JSON.stringify(users)
+      });
+
+      // Also try inserting into app_users if table exists
+      for (const u of users) {
+        supabase.from('app_users').upsert({
+          name: u.name,
+          username: u.username,
+          phone: u.phone || null,
+          pin: u.pin,
+          role: u.role,
+          avatar_emoji: u.avatar_emoji,
+          is_active: u.is_active !== false
+        }).then();
+      }
+    } catch {}
+  }
+
+  // Screen Lock Support for Cashiers
+  public isScreenLocked(): boolean {
+    this.init();
+    return this.getItem<boolean>(STORAGE_KEYS.SCREEN_LOCKED, false);
+  }
+
+  public setScreenLocked(locked: boolean): void {
+    this.setItem(STORAGE_KEYS.SCREEN_LOCKED, locked);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('pzt_screen_locked', { detail: locked }));
+    }
+  }
+
+  public unlockScreen(pin: string, userId?: string): { success: boolean; user?: AppUser; message?: string } {
+    const users = this.getActiveUsers();
+    let targetUser = userId ? users.find(u => u.id === userId) : null;
+
+    if (!targetUser) {
+      // Find matching user by PIN
+      const matched = users.filter(u => u.pin === pin.trim());
+      if (matched.length === 1) {
+        targetUser = matched[0];
+      } else if (matched.length > 1) {
+        const current = this.getCurrentUser();
+        if (current && current.pin === pin.trim()) {
+          targetUser = current;
+        } else {
+          targetUser = matched[0];
+        }
+      }
+    }
+
+    if (targetUser && targetUser.pin === pin.trim()) {
+      this.setCurrentUser(targetUser);
+      this.setScreenLocked(false);
+      return { success: true, user: targetUser };
+    }
+
+    // Check if master PIN entered
+    if (this.verifyAdminMasterPin(pin)) {
+      const admin = users.find(u => u.role === 'super_admin') || this.getCurrentUser();
+      this.setCurrentUser(admin);
+      this.setScreenLocked(false);
+      return { success: true, user: admin };
+    }
+
+    return { success: false, message: 'รหัส PIN ไม่ถูกต้อง' };
   }
 
   public getCurrentUser(): AppUser {
@@ -982,12 +1211,12 @@ class StorageManager {
   }
 
   public authenticate(usernameOrPhone: string, pin: string): AppUser | null {
-    const users = this.getUsers();
+    const users = this.getActiveUsers();
     const cleanInput = usernameOrPhone.trim().toLowerCase();
     const cleanPin = pin.trim();
 
     const matched = users.find(
-      u => u.username.toLowerCase() === cleanInput && u.pin === cleanPin
+      u => (u.username.toLowerCase() === cleanInput || u.phone === cleanInput) && u.pin === cleanPin
     );
 
     if (matched) {
@@ -998,8 +1227,8 @@ class StorageManager {
   }
 
   public logout(): void {
-    // On logout, default to worker or first available user
-    const users = this.getUsers();
+    // On logout, lock screen or default to worker
+    const users = this.getActiveUsers();
     const worker = users.find(u => u.role === 'worker') || users[0];
     this.setCurrentUser(worker);
   }

@@ -15,7 +15,8 @@ import {
   Scale, 
   CheckCircle,
   TrendingDown,
-  Wallet
+  Wallet,
+  UserCheck
 } from 'lucide-react';
 
 interface ShiftSummaryModalProps {
@@ -53,6 +54,20 @@ export default function ShiftSummaryModal({ isOpen, onClose }: ShiftSummaryModal
       }
     });
   });
+
+  // Cashier Breakdown
+  const cashierStats: Record<string, { name: string; count: number; total: number; cash: number; promptpay: number }> = {};
+  orders.forEach(o => {
+    const cName = o.cashier_name || 'ไม่ระบุพนักงาน';
+    if (!cashierStats[cName]) {
+      cashierStats[cName] = { name: cName, count: 0, total: 0, cash: 0, promptpay: 0 };
+    }
+    cashierStats[cName].count += 1;
+    cashierStats[cName].total += o.total_amount;
+    if (o.payment_method === 'cash') cashierStats[cName].cash += o.total_amount;
+    if (o.payment_method === 'promptpay') cashierStats[cName].promptpay += o.total_amount;
+  });
+  const cashierList = Object.values(cashierStats);
 
   const handlePrint = () => {
     playBeep(750, 0.08);
@@ -150,6 +165,35 @@ export default function ShiftSummaryModal({ isOpen, onClose }: ShiftSummaryModal
               <span className="text-emerald-700">฿{totalSales.toLocaleString('th-TH', { minimumFractionDigits: 2 })}</span>
             </div>
           </div>
+
+          {/* Sales by Cashier Breakdown */}
+          {cashierList.length > 0 && (
+            <div className="space-y-2 py-3 border-b-2 border-dashed border-slate-300 text-sm">
+              <div className="flex justify-between items-center font-sans font-bold text-slate-700">
+                <span className="flex items-center gap-1.5">
+                  <UserCheck className="h-4 w-4 text-emerald-600 inline" /> ยอดขายแยกตามแคชเชียร์:
+                </span>
+                <span className="text-xs text-slate-500 font-normal">({cashierList.length} คน)</span>
+              </div>
+              <div className="space-y-1.5 pt-1">
+                {cashierList.map(c => (
+                  <div key={c.name} className="p-2 rounded-xl bg-white border border-slate-200 text-xs flex items-center justify-between">
+                    <div>
+                      <div className="font-sans font-bold text-slate-900">{c.name}</div>
+                      <div className="text-[10px] text-slate-500 font-sans mt-0.5">
+                        {c.count} บิล • สด: ฿{c.cash.toLocaleString()} • โอน: ฿{c.promptpay.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="font-black text-emerald-700 text-sm">
+                        ฿{c.total.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Fruit Weight Breakdown */}
           <div className="space-y-1.5 py-3 border-b-2 border-dashed border-slate-300 text-sm">

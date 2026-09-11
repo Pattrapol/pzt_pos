@@ -46,11 +46,12 @@ export default function AuthModal({
   const [regPin, setRegPin] = useState<string>('');
   const [regRole, setRegRole] = useState<UserRole>('worker');
   const [regEmoji, setRegEmoji] = useState<string>('👷‍♂️');
+  const [masterPin, setMasterPin] = useState<string>('');
   const [regError, setRegError] = useState<string>('');
 
   if (!isOpen) return null;
 
-  const allUsers = storage.getUsers();
+  const allUsers = storage.getActiveUsers();
 
   const handleSelectUser = (u: AppUser) => {
     playBeep(650, 0.05);
@@ -93,6 +94,17 @@ export default function AuthModal({
     if (!regPin.trim() || regPin.trim().length < 4) {
       setRegError('กรุณาตั้งรหัส PIN อย่างน้อย 4 หลัก (เช่น 1234)');
       return;
+    }
+
+    if (regRole === 'super_admin') {
+      if (!masterPin.trim()) {
+        setRegError('กรุณากรอกรหัสลับเจ้าของร้าน (Admin Master PIN) เพื่อยืนยันสิทธิ์');
+        return;
+      }
+      if (!storage.verifyAdminMasterPin(masterPin)) {
+        setRegError('รหัสลับเจ้าของร้าน (Admin Master PIN) ไม่ถูกต้อง ไม่อนุญาตให้สร้างสิทธิ์ super ADMIN');
+        return;
+      }
     }
 
     try {
@@ -362,6 +374,28 @@ export default function AuthModal({
                   </p>
                 </div>
               </div>
+
+              {/* Master PIN authorization if super_admin selected */}
+              {regRole === 'super_admin' && (
+                <div className="mt-3 p-3.5 rounded-2xl bg-purple-50/90 border border-purple-200 animate-in fade-in duration-150">
+                  <label className="text-xs font-bold text-purple-950 flex items-center gap-1.5 mb-1">
+                    <Lock className="h-3.5 w-3.5 text-purple-700" />
+                    <span>รหัสลับเจ้าของร้าน (Admin Master PIN):</span>
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={8}
+                    value={masterPin}
+                    onChange={(e) => setMasterPin(e.target.value)}
+                    placeholder="กรอกรหัสยืนยันสิทธิ์แอดมิน (ค่าเริ่มต้น 1234)..."
+                    className="w-full px-3 py-2 text-sm rounded-xl bg-white border border-purple-300 text-purple-950 font-bold focus:outline-none focus:border-purple-500 placeholder:text-purple-300"
+                  />
+                  <p className="text-[11px] text-purple-700 font-medium mt-1">
+                    * ป้องกันไม่ให้คนงานยกระดับสิทธิ์เข้าดูต้นทุนกำไรเองโดยไม่ได้รับอนุญาต
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Avatar Emoji Selector */}

@@ -14,6 +14,7 @@ import {
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'pending'>('all');
+  const [filterCashier, setFilterCashier] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [settings, setSettings] = useState<StoreSettings>(storage.getSettings());
 
@@ -34,13 +35,18 @@ export default function OrdersPage() {
     loadOrders();
   }, []);
 
+  // Unique cashiers from orders
+  const cashierNames = Array.from(new Set(orders.map(o => o.cashier_name || 'พนักงานขาย'))).filter(Boolean);
+
   const filteredOrders = orders.filter((o) => {
     const matchStatus = filterStatus === 'all' ? true : o.payment_status === filterStatus;
+    const matchCashier = filterCashier === 'all' ? true : (o.cashier_name === filterCashier || (!o.cashier_name && filterCashier === 'พนักงานขาย'));
     const matchSearch = 
       o.order_number.toLowerCase().includes(search.toLowerCase()) ||
       o.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+      (o.cashier_name && o.cashier_name.toLowerCase().includes(search.toLowerCase())) ||
       (o.customer_phone && o.customer_phone.includes(search));
-    return matchStatus && matchSearch;
+    return matchStatus && matchCashier && matchSearch;
   });
 
   const totalSales = orders.reduce((sum, o) => sum + o.total_amount, 0);
@@ -121,7 +127,7 @@ export default function OrdersPage() {
             <button
               key={tab.id}
               onClick={() => setFilterStatus(tab.id as any)}
-              className={`px-5 py-2.5 text-sm font-bold rounded-2xl whitespace-nowrap transition-all active:scale-95 ${
+              className={`px-4 py-2.5 text-xs sm:text-sm font-bold rounded-2xl whitespace-nowrap transition-all active:scale-95 ${
                 filterStatus === tab.id
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -130,6 +136,19 @@ export default function OrdersPage() {
               {tab.label}
             </button>
           ))}
+
+          {cashierNames.length > 0 && (
+            <select
+              value={filterCashier}
+              onChange={(e) => setFilterCashier(e.target.value)}
+              className="px-3 py-2.5 text-xs sm:text-sm font-bold rounded-2xl bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 focus:outline-none focus:border-emerald-500 shrink-0"
+            >
+              <option value="all">👤 แคชเชียร์: ทั้งหมด</option>
+              {cashierNames.map(cn => (
+                <option key={cn} value={cn}>👤 {cn}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -170,6 +189,14 @@ export default function OrdersPage() {
                       👤 {order.customer_name} {order.customer_phone ? `(${order.customer_phone})` : ''}
                     </span>
                     <span>{new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                  </div>
+
+                  {/* Cashier Badge */}
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                    <span>แคชเชียร์:</span>
+                    <span className="font-bold text-slate-700 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                      {order.cashier_name || 'พนักงานขาย'}
+                    </span>
                   </div>
 
                   {/* Items summary */}
@@ -225,11 +252,12 @@ export default function OrdersPage() {
 
         {/* Desktop View: Full Table (sm+) */}
         <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
+          <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="text-slate-600 border-b border-slate-200 font-bold">
               <tr>
                 <th className="pb-3">เลขที่บิล</th>
                 <th className="pb-3">วันและเวลา</th>
+                <th className="pb-3">แคชเชียร์</th>
                 <th className="pb-3">ลูกค้า</th>
                 <th className="pb-3">รายการสินค้า</th>
                 <th className="pb-3">ยอดสุทธิ</th>
@@ -241,7 +269,7 @@ export default function OrdersPage() {
             <tbody className="divide-y divide-slate-100">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
+                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
                     ไม่พบบิลการขายที่ตรงกับเงื่อนไข
                   </td>
                 </tr>
@@ -253,8 +281,13 @@ export default function OrdersPage() {
                       <td className="py-4 font-mono font-bold text-slate-900">
                         {order.order_number}
                       </td>
-                      <td className="py-4 text-slate-500">
+                      <td className="py-4 text-slate-500 text-xs">
                         {new Date(order.created_at).toLocaleString('th-TH')}
+                      </td>
+                      <td className="py-4">
+                        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                          👤 {order.cashier_name || 'พนักงานขาย'}
+                        </span>
                       </td>
                       <td className="py-4">
                         <div className="font-bold text-slate-900">{order.customer_name}</div>

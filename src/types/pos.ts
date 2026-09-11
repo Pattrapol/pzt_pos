@@ -16,9 +16,11 @@ export interface AppUser {
   id: string;
   name: string;
   username: string;
+  phone?: string;
   pin: string;
   role: UserRole;
   avatar_emoji?: string;
+  is_active?: boolean;
   created_at: string;
 }
 
@@ -114,6 +116,8 @@ export interface Order {
   id: string;
   order_number: string;
   season_id?: string;
+  cashier_id?: string;
+  cashier_name?: string;
   customer_name: string;
   customer_phone?: string;
   customer_type: CustomerType;
@@ -149,6 +153,7 @@ export interface StoreSettings {
   address: string;
   receipt_footer: string;
   tax_id?: string;
+  admin_master_pin?: string;
   sound_enabled?: boolean;
   large_font?: boolean;
 }
