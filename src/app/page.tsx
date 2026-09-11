@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Product, OrderItem, Order, StoreSettings } from '@/types/pos';
 import { storage } from '@/lib/storage';
+import { playBeep, playRemoveSound } from '@/lib/audio';
 import WeighingModal from '@/components/WeighingModal';
 import CheckoutModal from '@/components/CheckoutModal';
 import ReceiptModal from '@/components/ReceiptModal';
+import ShiftSummaryModal from '@/components/ShiftSummaryModal';
 import { 
   Search, 
   ShoppingCart, 
@@ -13,9 +15,11 @@ import {
   Scale, 
   CreditCard, 
   Plus, 
-  ArrowRight,
-  X,
-  ChevronUp
+  ArrowRight, 
+  X, 
+  ChevronUp,
+  CalendarCheck,
+  Box
 } from 'lucide-react';
 
 export default function PosPage() {
@@ -31,6 +35,7 @@ export default function PosPage() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [completedOrder, setCompletedOrder] = useState<Order | null>(null);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
 
   const loadData = () => {
@@ -40,6 +45,17 @@ export default function PosPage() {
 
   useEffect(() => {
     loadData();
+
+    // Auto-sync offline orders when network connection restores
+    const handleOnline = () => {
+      storage.syncPendingOrders().then((count) => {
+        if (count > 0) {
+          console.log(`Synced ${count} offline orders to Supabase Cloud`);
+        }
+      });
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
   }, []);
 
   const categories = ['ทั้งหมด', 'ทุเรียน', 'ทุเรียนแกะเนื้อ', 'ผลไม้สด', 'แปรรูป'];
@@ -52,18 +68,22 @@ export default function PosPage() {
   });
 
   const cartSubtotal = cart.reduce((sum, item) => sum + item.subtotal, 0);
-  const cartTotalWeight = cart.reduce((sum, item) => sum + (item.unit_type === 'kg' ? item.quantity_or_weight : 0), 0);
 
   const handleAddToCart = (itemData: {
     product: Product;
     quantityOrWeight: number;
+    gross_weight?: number;
+    tare_weight?: number;
     unitPrice: number;
     subtotal: number;
     notes?: string;
   }) => {
     setCart((prev) => {
       const existingIdx = prev.findIndex(
-        (i) => i.product_id === itemData.product.id && i.unit_price === itemData.unitPrice && i.notes === itemData.notes
+        (i) => i.product_id === itemData.product.id && 
+               i.unit_price === itemData.unitPrice && 
+               i.notes === itemData.notes &&
+               i.tare_weight === itemData.tare_weight
       );
 
       if (existingIdx >= 0) {
@@ -85,6 +105,8 @@ export default function PosPage() {
         unit_type: itemData.product.unit_type,
         unit_price: itemData.unitPrice,
         quantity_or_weight: itemData.quantityOrWeight,
+        gross_weight: itemData.gross_weight,
+        tare_weight: itemData.tare_weight,
         subtotal: itemData.subtotal,
         item_cost: itemData.product.cost_per_unit || 0,
         notes: itemData.notes
@@ -95,6 +117,7 @@ export default function PosPage() {
   };
 
   const handleRemoveFromCart = (index: number) => {
+    playRemoveSound();
     setCart((prev) => {
       const next = prev.filter((_, i) => i !== index);
       if (next.length === 0) setIsMobileCartOpen(false);
@@ -104,6 +127,7 @@ export default function PosPage() {
 
   const handleClearCart = () => {
     if (cart.length > 0 && confirm('ต้องการลบสินค้าทั้งหมดในตะกร้าหรือไม่?')) {
+      playRemoveSound();
       setCart([]);
       setIsMobileCartOpen(false);
     }
@@ -130,15 +154,32 @@ export default function PosPage() {
           
           {/* Top Controls: Search and Category Pills */}
           <div className="space-y-3 sm:space-y-4 pb-4 border-b border-slate-100">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="ค้นหาชื่อผลไม้ (เช่น หมอนทอง, ก้านยาว)..."
-                className="w-full pl-12 pr-4 py-3 text-base rounded-2xl bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-all font-medium"
-              />
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="ค้นหาชื่อผลไม้ (เช่น หมอนทอง, ก้านยาว)..."
+                  className="w-full pl-12 pr-4 py-3 text-base rounded-2xl bg-slate-50 border-2 border-slate-200 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition-all font-medium"
+                />
+              </div>
+
+              {/* Quick Shift Summary button on Tablet/Mobile */}
+              <button
+                type="button"
+                onClick={() => {
+                  playBeep(700, 0.05);
+                  setIsShiftModalOpen(true);
+                }}
+                title="สรุปยอดปิดกะวันนี้ (Z-Report)"
+                className="flex items-center gap-1.5 px-3.5 py-3 rounded-2xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs sm:text-sm font-bold active:scale-95 transition-all shrink-0"
+              >
+                <CalendarCheck className="h-4 w-4 text-amber-700" />
+                <span className="hidden sm:inline">ปิดกะวันนี้</span>
+                <span className="sm:hidden">ปิดกะ</span>
+              </button>
             </div>
 
             {/* Categories Pill Tabs - Scrollable with comfortable touch */}
@@ -146,7 +187,10 @@ export default function PosPage() {
               {categories.map((cat) => (
                 <button
                   key={cat}
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => {
+                    playBeep(650, 0.03);
+                    setSelectedCategory(cat);
+                  }}
                   className={`px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base font-bold rounded-2xl whitespace-nowrap transition-all active:scale-95 ${
                     selectedCategory === cat
                       ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
@@ -172,6 +216,7 @@ export default function PosPage() {
                   <div
                     key={product.id}
                     onClick={() => {
+                      playBeep(550, 0.04);
                       setWeighingProduct(product);
                       setIsWeighingOpen(true);
                     }}
@@ -268,8 +313,13 @@ export default function PosPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <h5 className="text-sm font-bold text-slate-900 truncate">{item.product_name}</h5>
-                    <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                      {item.quantity_or_weight} {item.unit_type === 'kg' ? 'กก.' : 'ชิ้น'} × ฿{item.unit_price}
+                    <div className="text-xs font-semibold text-slate-500 mt-0.5 flex items-center flex-wrap gap-1">
+                      <span>{item.quantity_or_weight} {item.unit_type === 'kg' ? 'กก.' : 'ชิ้น'} × ฿{item.unit_price}</span>
+                      {item.tare_weight && item.tare_weight > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold">
+                          หักกล่อง {(item.tare_weight * 1000).toFixed(0)}g
+                        </span>
+                      )}
                     </div>
                     {item.notes && (
                       <div className="text-[11px] text-amber-700 italic mt-0.5 truncate">
@@ -305,7 +355,10 @@ export default function PosPage() {
             </div>
 
             <button
-              onClick={() => setIsCheckoutOpen(true)}
+              onClick={() => {
+                playBeep(700, 0.05);
+                setIsCheckoutOpen(true);
+              }}
               disabled={cart.length === 0}
               className="w-full h-16 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xl shadow-lg shadow-emerald-600/30 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-between px-6 active:scale-[0.98]"
             >
@@ -324,33 +377,34 @@ export default function PosPage() {
 
       </div>
 
-      {/* Mobile Floating Bottom Bar (Appears when cart has items on screens < lg) */}
+      {/* Floating Bottom Cart Bar (Mobile/Tablet Only < lg) */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-30 animate-in slide-in-from-bottom duration-200">
+        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 animate-in slide-in-from-bottom duration-200">
           <div 
             onClick={() => setIsMobileCartOpen(true)}
-            className="p-4 rounded-3xl bg-slate-900 text-white shadow-2xl flex items-center justify-between cursor-pointer border-2 border-slate-800 active:scale-[0.99] transition-transform"
+            className="w-full bg-slate-900 text-white rounded-3xl p-4 shadow-2xl flex items-center justify-between cursor-pointer border border-slate-800"
           >
             <div className="flex items-center gap-3">
-              <div className="relative p-2.5 rounded-2xl bg-emerald-600 text-white">
+              <div className="relative p-2.5 rounded-2xl bg-emerald-500 text-white">
                 <ShoppingCart className="h-6 w-6" />
-                <span className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-amber-400 text-slate-950 font-black text-xs flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black">
                   {cart.length}
                 </span>
               </div>
               <div>
-                <div className="text-xs text-slate-400 font-bold">
-                  {cartTotalWeight > 0 ? `หนัก ${cartTotalWeight} กก.` : `${cart.length} รายการ`}
-                </div>
-                <div className="text-2xl font-black font-mono text-emerald-400">
-                  ฿{cartSubtotal.toLocaleString()}
-                </div>
+                <span className="text-xs text-slate-400 font-medium block">
+                  แตะเพื่อเปิดตะกร้า
+                </span>
+                <span className="text-xl font-black font-mono text-emerald-400">
+                  ฿{cartSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                </span>
               </div>
             </div>
 
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                playBeep(700, 0.05);
                 setIsCheckoutOpen(true);
               }}
               className="py-3 px-5 rounded-2xl bg-emerald-600 text-white font-black text-base flex items-center gap-2 shadow-md shadow-emerald-600/30 active:scale-95 transition-all"
@@ -405,8 +459,13 @@ export default function PosPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <h5 className="text-sm font-bold text-slate-900 truncate">{item.product_name}</h5>
-                    <div className="text-xs font-semibold text-slate-500 mt-0.5">
-                      {item.quantity_or_weight} {item.unit_type === 'kg' ? 'กก.' : 'ชิ้น'} × ฿{item.unit_price}
+                    <div className="text-xs font-semibold text-slate-500 mt-0.5 flex items-center flex-wrap gap-1">
+                      <span>{item.quantity_or_weight} {item.unit_type === 'kg' ? 'กก.' : 'ชิ้น'} × ฿{item.unit_price}</span>
+                      {item.tare_weight && item.tare_weight > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold">
+                          หักกล่อง {(item.tare_weight * 1000).toFixed(0)}g
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -436,6 +495,7 @@ export default function PosPage() {
 
               <button
                 onClick={() => {
+                  playBeep(700, 0.05);
                   setIsMobileCartOpen(false);
                   setIsCheckoutOpen(true);
                 }}
@@ -477,6 +537,12 @@ export default function PosPage() {
         settings={settings}
         isOpen={isReceiptOpen}
         onClose={() => setIsReceiptOpen(false)}
+      />
+
+      {/* Shift Summary Modal (Z-Report) */}
+      <ShiftSummaryModal
+        isOpen={isShiftModalOpen}
+        onClose={() => setIsShiftModalOpen(false)}
       />
 
     </div>

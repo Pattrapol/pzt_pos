@@ -7,10 +7,10 @@ import {
   Order, 
   OrderItem, 
   PaymentMethod, 
-  CustomerType, 
   StoreSettings 
 } from '@/types/pos';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { playCashChime, playBeep } from '@/lib/audio';
 import { 
   X, 
   Banknote, 
@@ -19,7 +19,9 @@ import {
   CheckCircle2, 
   AlertCircle,
   User,
-  Phone
+  Phone,
+  Percent,
+  Sparkles
 } from 'lucide-react';
 
 interface CheckoutModalProps {
@@ -52,6 +54,12 @@ export default function CheckoutModal({
   const numCashReceived = parseFloat(cashReceived) || 0;
   const changeGiven = Math.max(0, numCashReceived - totalAmount);
 
+  // Rounding options
+  const roundDown10 = Math.floor(subtotal / 10) * 10;
+  const discountTo10 = Math.max(0, Math.round((subtotal - roundDown10) * 100) / 100);
+  const roundDown5 = Math.floor(subtotal / 5) * 5;
+  const discountTo5 = Math.max(0, Math.round((subtotal - roundDown5) * 100) / 100);
+
   // Generate Dynamic PromptPay QR Code
   useEffect(() => {
     if (paymentMethod === 'promptpay' && totalAmount > 0 && settings.promptpay_id) {
@@ -77,7 +85,13 @@ export default function CheckoutModal({
   if (!isOpen) return null;
 
   const handleCashPreset = (amount: number) => {
+    playBeep(650, 0.05);
     setCashReceived(amount.toString());
+  };
+
+  const handleQuickDiscount = (amount: number) => {
+    playBeep(700, 0.06);
+    setDiscount(amount);
   };
 
   const handleCompleteOrder = () => {
@@ -87,6 +101,7 @@ export default function CheckoutModal({
     }
 
     setIsProcessing(true);
+    playCashChime();
 
     const newOrder: Omit<Order, 'id' | 'order_number' | 'created_at'> = {
       customer_name: customerName.trim() || 'ลูกค้าหน้าร้าน',
@@ -126,7 +141,7 @@ export default function CheckoutModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white border border-slate-200 p-6 sm:p-8 shadow-2xl text-slate-900">
+      <div className="relative w-full max-w-2xl max-h-[94vh] overflow-y-auto rounded-3xl bg-white border border-slate-200 p-5 sm:p-8 shadow-2xl text-slate-900">
         
         {/* Modal Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -140,6 +155,7 @@ export default function CheckoutModal({
             <p className="text-sm text-slate-500 font-medium mt-0.5">เลือกวิธีรับเงิน และตรวจสอบยอดเงิน</p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors"
             aria-label="ปิด"
@@ -149,39 +165,106 @@ export default function CheckoutModal({
         </div>
 
         {/* Amount Summary Card - Giant Legible Display */}
-        <div className="my-5 p-6 rounded-3xl bg-emerald-50/70 border-2 border-emerald-500/40 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <span className="text-sm font-bold text-slate-600 block">ยอดที่ต้องชำระ (บาท):</span>
-            <div className="text-4xl sm:text-5xl font-black text-emerald-700 font-mono mt-1">
-              ฿{totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        <div className="my-4 p-5 rounded-3xl bg-emerald-50/70 border-2 border-emerald-500/40">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <span className="text-sm font-bold text-slate-600 block">ยอดที่ต้องชำระสุทธิ (บาท):</span>
+              <div className="text-4xl sm:text-5xl font-black text-emerald-700 font-mono mt-1">
+                ฿{totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {discount > 0 ? (
+                <span className="text-xs text-red-500 font-bold mt-1 block">
+                  ลดให้ ฿{discount.toLocaleString()} จากเดิม ฿{subtotal.toLocaleString()}
+                </span>
+              ) : (
+                <span className="text-xs text-slate-500 font-medium mt-1 block">
+                  ยอดรวมสินค้า ฿{subtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                </span>
+              )}
             </div>
-            {discount > 0 && (
-              <span className="text-xs text-red-500 font-semibold mt-1 block">
-                หักส่วนลด ฿{discount.toLocaleString()} จากเดิม ฿{subtotal.toLocaleString()}
-              </span>
-            )}
+
+            {/* Custom Discount Input */}
+            <div className="text-right">
+              <label className="text-xs font-bold text-slate-600 block mb-1">ส่วนลด (บาท):</label>
+              <input
+                type="number"
+                min="0"
+                value={discount || ''}
+                onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
+                placeholder="0"
+                className="w-28 px-3 py-2 text-lg font-bold rounded-2xl bg-white border-2 border-slate-200 text-slate-900 text-right focus:outline-none focus:border-emerald-500 shadow-xs font-mono"
+              />
+            </div>
           </div>
 
-          {/* Discount Button/Input */}
-          <div className="text-right">
-            <label className="text-xs font-bold text-slate-600 block mb-1">ให้ส่วนลด (บาท):</label>
-            <input
-              type="number"
-              min="0"
-              value={discount || ''}
-              onChange={(e) => setDiscount(Math.max(0, parseFloat(e.target.value) || 0))}
-              placeholder="0"
-              className="w-28 px-3 py-2 text-lg font-bold rounded-2xl bg-white border-2 border-slate-200 text-slate-900 text-right focus:outline-none focus:border-emerald-500 shadow-xs"
-            />
+          {/* Quick Rounding & Discount Buttons */}
+          <div className="mt-3.5 pt-3 border-t border-emerald-200/60">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-2">
+              <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+              <span>ปุ่มลัดปัดเศษสตางค์ & ลดราคาเศษบาท:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {discountTo10 > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleQuickDiscount(discountTo10)}
+                  className="py-1.5 px-3 text-xs sm:text-sm font-bold rounded-xl bg-white border-2 border-emerald-300 text-emerald-800 hover:bg-emerald-100/60 active:scale-95 transition-all shadow-xs"
+                >
+                  ปัดเศษลงเหลือ ฿{roundDown10} (ลด {discountTo10}บ.)
+                </button>
+              )}
+              {discountTo5 > 0 && discountTo5 !== discountTo10 && (
+                <button
+                  type="button"
+                  onClick={() => handleQuickDiscount(discountTo5)}
+                  className="py-1.5 px-3 text-xs sm:text-sm font-bold rounded-xl bg-white border-2 border-emerald-300 text-emerald-800 hover:bg-emerald-100/60 active:scale-95 transition-all shadow-xs"
+                >
+                  ปัดเศษลงเหลือ ฿{roundDown5} (ลด {discountTo5}บ.)
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleQuickDiscount(discount + 5)}
+                className="py-1.5 px-2.5 text-xs sm:text-sm font-bold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+              >
+                -5 บ.
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDiscount(discount + 10)}
+                className="py-1.5 px-2.5 text-xs sm:text-sm font-bold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+              >
+                -10 บ.
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickDiscount(discount + 20)}
+                className="py-1.5 px-2.5 text-xs sm:text-sm font-bold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 active:scale-95 transition-all"
+              >
+                -20 บ.
+              </button>
+              {discount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => handleQuickDiscount(0)}
+                  className="py-1.5 px-2.5 text-xs sm:text-sm font-bold rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 active:scale-95 transition-all"
+                >
+                  ล้างส่วนลด
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Payment Method Selector Tabs - Responsive Buttons */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-4">
           <button
             type="button"
-            onClick={() => setPaymentMethod('promptpay')}
-            className={`p-2.5 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
+            onClick={() => {
+              playBeep(600, 0.05);
+              setPaymentMethod('promptpay');
+            }}
+            className={`p-3 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
               paymentMethod === 'promptpay'
                 ? 'bg-emerald-600 text-white font-black border-emerald-600 shadow-md shadow-emerald-600/20'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -194,10 +277,11 @@ export default function CheckoutModal({
           <button
             type="button"
             onClick={() => {
+              playBeep(600, 0.05);
               setPaymentMethod('cash');
               if (!cashReceived) setCashReceived(totalAmount.toString());
             }}
-            className={`p-2.5 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
+            className={`p-3 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
               paymentMethod === 'cash'
                 ? 'bg-emerald-600 text-white font-black border-emerald-600 shadow-md shadow-emerald-600/20'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -209,8 +293,11 @@ export default function CheckoutModal({
 
           <button
             type="button"
-            onClick={() => setPaymentMethod('credit')}
-            className={`p-2.5 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
+            onClick={() => {
+              playBeep(600, 0.05);
+              setPaymentMethod('credit');
+            }}
+            className={`p-3 sm:p-4 rounded-2xl border-2 text-center transition-all flex flex-col items-center gap-1.5 sm:gap-2 active:scale-95 ${
               paymentMethod === 'credit'
                 ? 'bg-amber-500 text-slate-950 font-black border-amber-500 shadow-md shadow-amber-500/20'
                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -222,7 +309,7 @@ export default function CheckoutModal({
         </div>
 
         {/* Dynamic Payment Details Area */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-slate-50 border border-slate-200 mb-5">
+        <div className="p-4 sm:p-5 rounded-3xl bg-slate-50 border border-slate-200 mb-4">
           
           {/* 1. PromptPay View - Responsive QR */}
           {paymentMethod === 'promptpay' && (
@@ -233,19 +320,19 @@ export default function CheckoutModal({
                   <img
                     src={qrCodeDataUrl}
                     alt="PromptPay QR Code"
-                    className="w-48 h-48 sm:w-60 sm:h-60 object-contain"
+                    className="w-48 h-48 sm:w-56 sm:h-56 object-contain"
                   />
                 ) : (
-                  <div className="w-48 h-48 sm:w-60 sm:h-60 flex items-center justify-center text-slate-400 text-sm">
+                  <div className="w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center text-slate-400 text-sm">
                     กำลังสร้าง QR Code...
                   </div>
                 )}
               </div>
               <div>
-                <span className="text-lg font-bold text-slate-900 block">
+                <span className="text-base sm:text-lg font-bold text-slate-900 block">
                   พร้อมเพย์: <span className="text-emerald-700 font-black font-mono">{settings.promptpay_id}</span>
                 </span>
-                <p className="text-sm text-slate-600 mt-0.5">
+                <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
                   ลูกค้าเปิดแอปธนาคารสแกนได้ทันที ยอดเงินระบุไว้พอดี <strong>฿{totalAmount.toLocaleString()}</strong>
                 </p>
               </div>
@@ -287,20 +374,20 @@ export default function CheckoutModal({
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">
                   ปุ่มลัดธนบัตรที่รับมา:
                 </span>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={() => handleCashPreset(totalAmount)}
-                    className="py-2.5 px-4 text-sm font-black rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 active:scale-95 transition-all shadow-xs"
+                    className="py-2 px-3 text-sm font-black rounded-xl bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 active:scale-95 transition-all shadow-xs"
                   >
                     รับมาพอดี (฿{totalAmount.toLocaleString()})
                   </button>
-                  {[100, 500, 1000].map((val) => (
+                  {[50, 100, 500, 1000].map((val) => (
                     <button
                       key={val}
                       type="button"
                       onClick={() => handleCashPreset(val)}
-                      className="py-2.5 px-4 text-base font-black rounded-xl bg-white text-slate-800 border-2 border-slate-200 hover:border-emerald-500 active:scale-95 transition-all shadow-xs"
+                      className="py-2 px-3 text-base font-black rounded-xl bg-white text-slate-800 border-2 border-slate-200 hover:border-emerald-500 active:scale-95 transition-all shadow-xs"
                     >
                       แบงก์ ฿{val.toLocaleString()}
                     </button>
@@ -334,7 +421,7 @@ export default function CheckoutModal({
         </div>
 
         {/* Customer Information Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
           <div>
             <label className="text-xs font-bold text-slate-600 flex items-center gap-1 mb-1">
               <User className="h-3.5 w-3.5" /> ชื่อลูกค้า (ถ้าต้องการระบุ):
@@ -363,11 +450,11 @@ export default function CheckoutModal({
         </div>
 
         {/* Action Buttons - Giant confirmation button */}
-        <div className="flex items-center gap-3 pt-2">
+        <div className="flex items-center gap-3 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="w-1/3 py-4 px-4 text-base font-bold rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+            className="w-1/3 py-3.5 px-4 text-base font-bold rounded-2xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
           >
             ย้อนกลับ
           </button>

@@ -81,7 +81,9 @@ export interface OrderItem {
   product_name: string;
   unit_type: UnitType;
   unit_price: number;
-  quantity_or_weight: number; // e.g. 3.45 kg or 2 boxes
+  quantity_or_weight: number; // e.g. 3.45 kg or 2 boxes (net weight)
+  gross_weight?: number;      // น้ำหนักรวมก่อนหักภาชนะ
+  tare_weight?: number;       // น้ำหนักภาชนะที่หัก (กก.)
   subtotal: number;
   item_cost: number;
   notes?: string;
@@ -105,6 +107,7 @@ export interface Order {
   notes?: string;
   items: OrderItem[];
   created_at: string;
+  synced?: boolean;
 }
 
 export interface DebtPayment {
@@ -125,4 +128,6 @@ export interface StoreSettings {
   address: string;
   receipt_footer: string;
   tax_id?: string;
+  sound_enabled?: boolean;
+  large_font?: boolean;
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Prompt } from "next/font/google";
 import Navbar from "@/components/Navbar";
 import "./globals.css";
@@ -9,9 +9,20 @@ const promptFont = Prompt({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#059669",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "PZT Fruit POS - ระบบจัดการร้านผลไม้และทุเรียนตามฤดูกาล (ใช้ง่าย สบายตา)",
   description: "ระบบขายหน้าร้าน POS สไตล์ Minimal ตัวหนังสือใหญ่ ใช้งานง่าย เหมาะสำหรับทุกคน",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PZT POS",
+  },
 };
 
 export default function RootLayout({

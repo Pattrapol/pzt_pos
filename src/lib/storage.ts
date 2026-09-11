@@ -577,6 +577,8 @@ class StorageManager {
         notes: newOrder.notes || null,
       }).select().then(({ data: ordData, error }) => {
         if (!error && ordData && ordData[0]) {
+          newOrder.synced = true;
+          this.setItem(STORAGE_KEYS.ORDERS, orders);
           const dbItems = newOrder.items.map(i => ({
             order_id: ordData[0].id,
             product_name: i.product_name,
@@ -587,11 +589,68 @@ class StorageManager {
             item_cost: i.item_cost || 0
           }));
           client.from('order_items').insert(dbItems).then();
+        } else {
+          newOrder.synced = false;
+          this.setItem(STORAGE_KEYS.ORDERS, orders);
         }
+      }, () => {
+        newOrder.synced = false;
+        this.setItem(STORAGE_KEYS.ORDERS, orders);
       });
     }
 
     return newOrder;
+  }
+
+  public async syncPendingOrders(): Promise<number> {
+    if (!supabase || (typeof navigator !== 'undefined' && !navigator.onLine)) return 0;
+    const orders = this.getOrders();
+    const unsynced = orders.filter(o => o.synced === false);
+    if (unsynced.length === 0) return 0;
+
+    let syncedCount = 0;
+    for (const ord of unsynced) {
+      try {
+        const { data: ordData, error } = await supabase.from('orders').insert({
+          order_number: ord.order_number,
+          customer_name: ord.customer_name,
+          customer_phone: ord.customer_phone || null,
+          customer_type: ord.customer_type,
+          subtotal: ord.subtotal,
+          discount: ord.discount,
+          total_amount: ord.total_amount,
+          payment_method: ord.payment_method,
+          payment_status: ord.payment_status,
+          cash_received: ord.cash_received || null,
+          change_given: ord.change_given || null,
+          due_date: ord.due_date || null,
+          notes: ord.notes || null,
+        }).select();
+
+        if (!error && ordData && ordData[0]) {
+          ord.synced = true;
+          syncedCount++;
+          const dbItems = ord.items.map(i => ({
+            order_id: ordData[0].id,
+            product_name: i.product_name,
+            unit_type: i.unit_type,
+            unit_price: i.unit_price,
+            quantity_or_weight: i.quantity_or_weight,
+            subtotal: i.subtotal,
+            item_cost: i.item_cost || 0
+          }));
+          await supabase.from('order_items').insert(dbItems);
+        }
+      } catch (e) {
+        // Stop batch if network still down
+        break;
+      }
+    }
+
+    if (syncedCount > 0) {
+      this.setItem(STORAGE_KEYS.ORDERS, orders);
+    }
+    return syncedCount;
   }
 
   public updateOrderStatus(orderId: string, status: 'paid' | 'pending' | 'partial', paymentMethod?: PaymentMethod): void {

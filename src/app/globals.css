@@ -25,6 +25,13 @@ body {
   background: #94a3b8;
 }
 
+html.large-text-mode {
+  font-size: 18px;
+}
+html.large-text-mode body {
+  font-size: 18px;
+}
+
 /* Print Styles for 58mm / 80mm Thermal Receipt Printers */
 @media print {
   @page {
@@ -36,11 +43,12 @@ body {
     visibility: hidden;
   }
 
-  #thermal-receipt, #thermal-receipt * {
+  #thermal-receipt, #thermal-receipt *,
+  #shift-report, #shift-report * {
     visibility: visible;
   }
 
-  #thermal-receipt {
+  #thermal-receipt, #shift-report {
     position: absolute;
     left: 0;
     top: 0;
