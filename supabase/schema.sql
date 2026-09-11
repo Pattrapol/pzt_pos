@@ -173,14 +173,33 @@ alter table public.debt_payments enable row level security;
 alter table public.store_settings enable row level security;
 alter table public.app_users enable row level security;
 
--- Public / Anonymous access policies for simple POS terminal usage
+-- Public / Anonymous access policies for simple POS terminal usage (Idempotent)
+drop policy if exists "Allow all operations for anon" on public.seasons;
 create policy "Allow all operations for anon" on public.seasons for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.products;
 create policy "Allow all operations for anon" on public.products for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.inbound_lots;
 create policy "Allow all operations for anon" on public.inbound_lots for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.expenses;
 create policy "Allow all operations for anon" on public.expenses for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.waste_records;
 create policy "Allow all operations for anon" on public.waste_records for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.orders;
 create policy "Allow all operations for anon" on public.orders for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.order_items;
 create policy "Allow all operations for anon" on public.order_items for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.debt_payments;
 create policy "Allow all operations for anon" on public.debt_payments for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.store_settings;
 create policy "Allow all operations for anon" on public.store_settings for all using (true) with check (true);
+
+drop policy if exists "Allow all operations for anon" on public.app_users;
 create policy "Allow all operations for anon" on public.app_users for all using (true) with check (true);
