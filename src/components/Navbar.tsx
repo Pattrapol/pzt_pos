@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { 
@@ -22,7 +22,8 @@ import {
   ZoomOut,
   CalendarCheck,
   UserCheck,
-  KeyRound
+  KeyRound,
+  ChevronDown
 } from 'lucide-react';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { isSoundEnabled, setSoundEnabled, playBeep } from '@/lib/audio';
@@ -35,12 +36,14 @@ import ScreenLockModal from './ScreenLockModal';
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
   const [largeFont, setLargeFont] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [isLocked, setIsLocked] = useState(false);
+  const manageMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSoundOn(isSoundEnabled());
@@ -66,11 +69,20 @@ export default function Navbar() {
       setIsLocked(customEvent.detail);
     };
 
+    // Listen to click outside to close management dropdown
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manageMenuRef.current && !manageMenuRef.current.contains(e.target as Node)) {
+        setIsManageMenuOpen(false);
+      }
+    };
+
     window.addEventListener('pzt_auth_changed', handleAuthChanged);
     window.addEventListener('pzt_screen_locked', handleScreenLocked);
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       window.removeEventListener('pzt_auth_changed', handleAuthChanged);
       window.removeEventListener('pzt_screen_locked', handleScreenLocked);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -95,7 +107,7 @@ export default function Navbar() {
 
   const isSuperAdmin = currentUser?.role === 'super_admin';
 
-  // Master nav items
+  // Master nav items (Full list for mobile drawer)
   const allNavItems = [
     { label: 'ขายหน้าร้าน', href: '/', icon: ShoppingBag, roles: ['worker', 'super_admin'] },
     { label: 'สินค้า & SKU', href: '/products', icon: Boxes, roles: ['super_admin'] },
@@ -107,9 +119,25 @@ export default function Navbar() {
     { label: 'ตั้งค่าร้าน', href: '/settings', icon: Settings, roles: ['super_admin'] },
   ];
 
-  // Filtered by current user's role:
-  // - Worker sees: ขายหน้าร้าน, บิลขาย
-  // - Super Admin sees: ALL
+  // Desktop primary items shown directly on top navbar
+  const primaryDesktopNav = [
+    { label: 'ขายหน้าร้าน', href: '/', icon: ShoppingBag, roles: ['worker', 'super_admin'] },
+    { label: 'สินค้า & SKU', href: '/products', icon: Boxes, roles: ['super_admin'] },
+    { label: 'บิลขาย & ลูกหนี้', href: '/orders', icon: ReceiptText, roles: ['worker', 'super_admin'] },
+    { label: 'กำไร-ขาดทุน', href: '/dashboard', icon: BarChart3, roles: ['super_admin'] },
+  ].filter(item => item.roles.includes(currentUser?.role || 'worker'));
+
+  // Desktop back-office management items grouped under dropdown for super_admin
+  const manageDropdownItems = [
+    { label: 'พนักงาน & สิทธิ์', href: '/users', icon: Users, desc: 'พนักงาน, สิทธิ์การใช้งาน & PIN' },
+    { label: 'ล็อต & ต้นทุน', href: '/lots', icon: Truck, desc: 'รับเข้าผลไม้ & คำนวณต้นทุนเฉลี่ย' },
+    { label: 'รายจ่าย & ของเสีย', href: '/expenses', icon: Layers, desc: 'ค่าน้ำมัน, ค่าใช้จ่าย, ทุเรียนเน่า' },
+    { label: 'ตั้งค่าร้าน', href: '/settings', icon: Settings, desc: 'ข้อมูลร้าน & สำรองข้อมูล Cloud' },
+  ];
+
+  const isManageActive = manageDropdownItems.some(item => pathname === item.href);
+
+  // Filtered by current user's role for mobile drawer:
   const visibleNavItems = allNavItems.filter(item => {
     const role = currentUser?.role || 'worker';
     return item.roles.includes(role);
@@ -118,7 +146,7 @@ export default function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
-        <div className="mx-auto flex h-16 sm:h-20 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8 gap-2 sm:gap-3">
+        <div className="mx-auto flex h-16 sm:h-20 max-w-[1600px] 2xl:max-w-[1800px] items-center justify-between px-3 sm:px-6 lg:px-8 gap-2 sm:gap-4">
           
           {/* Brand Logo - Responsive size */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -144,9 +172,9 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* Desktop Navigation Links - Filtered by role, no text wrap */}
+          {/* Desktop Navigation Links - Compact, Responsive & Elegant */}
           <nav className="hidden lg:flex items-center gap-1.5 shrink-0">
-            {visibleNavItems.map((item) => {
+            {primaryDesktopNav.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
@@ -164,6 +192,75 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Management Dropdown Menu for super_admin */}
+            {isSuperAdmin && (
+              <div className="relative" ref={manageMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    playBeep(650, 0.03);
+                    setIsManageMenuOpen(!isManageMenuOpen);
+                  }}
+                  className={`flex items-center gap-2 rounded-2xl px-3.5 py-2 text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
+                    isManageActive
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                      : isManageMenuOpen
+                      ? 'bg-slate-100 text-slate-900 ring-2 ring-emerald-500/20'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <Settings className={`h-4 w-4 ${isManageActive ? 'text-white' : 'text-emerald-600'}`} />
+                  <span>จัดการร้าน</span>
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${isManageMenuOpen ? 'rotate-180' : ''} ${isManageActive ? 'text-white' : 'text-slate-400'}`} />
+                </button>
+
+                {/* Dropdown Floating Menu */}
+                {isManageMenuOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-72 rounded-3xl bg-white border border-slate-200 shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                      <span>ระบบจัดการหลังร้าน</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 font-black">ADMIN</span>
+                    </div>
+                    <div className="pt-1.5 space-y-1">
+                      {manageDropdownItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname === item.href;
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            onClick={() => {
+                              playBeep(650, 0.03);
+                              setIsManageMenuOpen(false);
+                            }}
+                            className={`flex items-start gap-3 rounded-2xl p-2.5 transition-all ${
+                              isActive
+                                ? 'bg-emerald-50 text-emerald-950 border border-emerald-200 font-bold'
+                                : 'hover:bg-slate-50 text-slate-700 font-medium'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-xl mt-0.5 shrink-0 transition-colors ${
+                              isActive ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
+                            }`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className={`text-sm font-black ${isActive ? 'text-emerald-800' : 'text-slate-900'}`}>
+                                {item.label}
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-medium line-clamp-1 mt-0.5">
+                                {item.desc}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
 
           {/* Right Action Tools: Role Pill, Shift, Sound, Font */}

@@ -220,8 +220,8 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Product Cards Grid: 2 cols on mobile, 3 cols on tablet, 4 on desktop */}
-          <div className="flex-1 pt-3 sm:pt-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 content-start">
+          {/* Product Cards Grid: 2 cols on mobile, 3 cols on tablet/laptop, 4 on wide desktop */}
+          <div className="flex-1 pt-3 sm:pt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4 content-start">
             {filteredProducts.length === 0 ? (
               <div className="col-span-full py-16 text-center text-slate-400">
                 <p className="text-lg font-medium">ไม่พบผลไม้ที่ค้นหา</p>
@@ -237,7 +237,7 @@ export default function PosPage() {
                       setWeighingProduct(product);
                       setIsWeighingOpen(true);
                     }}
-                    className="group relative flex flex-col justify-between p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border-2 border-slate-200/90 hover:border-emerald-500 hover:bg-white hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]"
+                    className="group relative flex flex-col justify-between p-3.5 sm:p-4 lg:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border-2 border-slate-200/90 hover:border-emerald-500 hover:bg-white hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]"
                   >
                     {/* Stock & Emoji */}
                     <div className="flex items-start justify-between gap-1 mb-1 sm:mb-2">
@@ -255,7 +255,7 @@ export default function PosPage() {
 
                     {/* Product Details */}
                     <div className="my-1 sm:my-2">
-                      <div className="flex items-center gap-1.5 mb-0.5">
+                      <div className="flex items-center gap-1.5 mb-1">
                         {product.sku && (
                           <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
                             {product.sku}
@@ -265,7 +265,7 @@ export default function PosPage() {
                           {product.category}
                         </span>
                       </div>
-                      <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-tight">
+                      <h4 className="text-sm sm:text-base font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-snug min-h-[2.5rem] sm:min-h-[2.75rem]">
                         {product.name}
                       </h4>
                     </div>
@@ -295,7 +295,7 @@ export default function PosPage() {
         </div>
 
         {/* Right: Cart Panel (Desktop Only - Side by side) */}
-        <div className="hidden lg:flex w-96 xl:w-[420px] flex-col bg-white border-2 border-slate-200 rounded-3xl p-6 shadow-md h-[calc(100vh-8.5rem)] sticky top-24">
+        <div className="hidden lg:flex w-80 xl:w-[360px] 2xl:w-[400px] shrink-0 flex-col bg-white border-2 border-slate-200 rounded-3xl p-5 sm:p-6 shadow-md h-[calc(100vh-7.5rem)] sticky top-20 sm:top-24">
           
           {/* Cart Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">

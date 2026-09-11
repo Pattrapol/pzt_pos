@@ -34,7 +34,7 @@ export default function RootLayout({
     <html lang="th" className={promptFont.className}>
       <body className="min-h-screen flex flex-col bg-slate-50 text-slate-900 antialiased selection:bg-emerald-500 selection:text-white">
         <Navbar />
-        <main className="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <main className="flex-1 max-w-[1600px] 2xl:max-w-[1800px] w-full mx-auto p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6">
           {children}
         </main>
       </body>
