@@ -5,6 +5,26 @@
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
+-- 0. APP USERS (พนักงานและผู้ใช้งานระบบ)
+create table if not exists public.app_users (
+  id text primary key,
+  name text not null,
+  username text not null unique,
+  phone text,
+  pin text not null,
+  role text not null default 'worker' check (role in ('worker', 'super_admin')),
+  avatar_emoji text default '👷‍♂️',
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Insert Default Demo Users
+insert into public.app_users (id, name, username, phone, pin, role, avatar_emoji)
+values 
+  ('u-admin', 'เถ้าแก่ (เจ้าของร้าน)', 'admin', '081-234-5678', '1234', 'super_admin', '👑'),
+  ('u-worker-1', 'สมชาย (แคชเชียร์/คนงาน)', 'worker', '089-999-8888', '1111', 'worker', '👷‍♂️')
+on conflict (id) do nothing;
+
 -- 1. SEASONS (รอบฤดูกาลผลไม้)
 create table if not exists public.seasons (
   id uuid primary key default uuid_generate_v4(),
@@ -151,6 +171,7 @@ alter table public.orders enable row level security;
 alter table public.order_items enable row level security;
 alter table public.debt_payments enable row level security;
 alter table public.store_settings enable row level security;
+alter table public.app_users enable row level security;
 
 -- Public / Anonymous access policies for simple POS terminal usage
 create policy "Allow all operations for anon" on public.seasons for all using (true) with check (true);
@@ -162,3 +183,4 @@ create policy "Allow all operations for anon" on public.orders for all using (tr
 create policy "Allow all operations for anon" on public.order_items for all using (true) with check (true);
 create policy "Allow all operations for anon" on public.debt_payments for all using (true) with check (true);
 create policy "Allow all operations for anon" on public.store_settings for all using (true) with check (true);
+create policy "Allow all operations for anon" on public.app_users for all using (true) with check (true);
