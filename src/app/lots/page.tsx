@@ -265,11 +265,78 @@ export default function LotsPage() {
         </form>
       )}
 
-      {/* Lots List Table - Clean Minimal */}
-      <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
+      {/* Lots List Container */}
+      <div className="p-4 sm:p-7 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
         <h3 className="text-xl font-black text-slate-900 mb-4">รายการล็อตรับซื้อทั้งหมด ({lots.length} ล็อต)</h3>
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: Clean Card List (< sm) */}
+        <div className="block sm:hidden space-y-3">
+          {lots.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 font-medium">
+              ยังไม่มีประวัติการบันทึกล็อต
+            </div>
+          ) : (
+            lots.map((lot) => (
+              <div 
+                key={lot.id} 
+                className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/60 space-y-2 shadow-2xs"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-black text-slate-900 text-sm">
+                    {lot.lot_number}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {lot.purchase_date}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-slate-900 text-base">{lot.source_name}</h4>
+                    <div className="text-xs text-slate-600 font-semibold mt-0.5 flex items-center gap-1.5">
+                      <span>{lot.variety}</span>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 text-[10px] font-bold">
+                        {lot.grade}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleDelete(lot.id)}
+                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    title="ลบล็อตนี้"
+                    aria-label="ลบ"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-white border border-slate-200 text-center">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block">น้ำหนัก</span>
+                    <span className="text-xs font-black font-mono text-slate-800">{lot.initial_weight_kg.toLocaleString()} กก.</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block">ต้นทุนรวม</span>
+                    <span className="text-xs font-black font-mono text-amber-700">฿{lot.cost_total.toLocaleString()}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block">ต้นทุน/กก.</span>
+                    <span className="text-xs font-black font-mono text-emerald-700">฿{lot.cost_per_kg}</span>
+                  </div>
+                </div>
+
+                {lot.notes && (
+                  <p className="text-xs text-slate-500 italic truncate">
+                    {lot.notes}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (sm+) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead className="text-slate-600 border-b border-slate-200 font-bold">
               <tr>

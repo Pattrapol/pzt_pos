@@ -203,8 +203,8 @@ export default function PosPage() {
             </div>
           </div>
 
-          {/* Product Cards Grid: 1 col on ultra-narrow, 2 cols on mobile, 3 cols on tablet, 4 on desktop */}
-          <div className="flex-1 pt-4 grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 content-start">
+          {/* Product Cards Grid: 2 cols on mobile, 3 cols on tablet, 4 on desktop */}
+          <div className="flex-1 pt-3 sm:pt-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 content-start">
             {filteredProducts.length === 0 ? (
               <div className="col-span-full py-16 text-center text-slate-400">
                 <p className="text-lg font-medium">ไม่พบผลไม้ที่ค้นหา</p>
@@ -220,45 +220,45 @@ export default function PosPage() {
                       setWeighingProduct(product);
                       setIsWeighingOpen(true);
                     }}
-                    className="group relative flex flex-col justify-between p-4 sm:p-5 rounded-3xl bg-slate-50/70 border-2 border-slate-200/90 hover:border-emerald-500 hover:bg-white hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]"
+                    className="group relative flex flex-col justify-between p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl bg-slate-50/70 border-2 border-slate-200/90 hover:border-emerald-500 hover:bg-white hover:shadow-lg cursor-pointer transition-all active:scale-[0.98]"
                   >
                     {/* Stock & Emoji */}
-                    <div className="flex items-start justify-between gap-1 mb-2">
-                      <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">
+                    <div className="flex items-start justify-between gap-1 mb-1 sm:mb-2">
+                      <span className="text-3xl sm:text-5xl group-hover:scale-110 transition-transform">
                         {product.image_emoji}
                       </span>
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
+                      <span className={`text-[10px] sm:text-xs px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full font-bold ${
                         isLowStock 
                           ? 'bg-red-50 text-red-600 border border-red-200' 
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}>
-                        เหลือ {product.current_stock} {product.unit_type === 'kg' ? 'กก.' : 'ชิ้น'}
+                        {product.current_stock} {product.unit_type === 'kg' ? 'กก.' : 'ชิ้น'}
                       </span>
                     </div>
 
                     {/* Product Details */}
-                    <div className="my-1.5 sm:my-2">
-                      <h4 className="text-base sm:text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2">
+                    <div className="my-1 sm:my-2">
+                      <h4 className="text-sm sm:text-lg font-black text-slate-900 group-hover:text-emerald-700 transition-colors line-clamp-2 leading-tight">
                         {product.name}
                       </h4>
-                      <span className="text-xs text-slate-500 font-semibold">
-                        หมวด: {product.category}
+                      <span className="text-[11px] sm:text-xs text-slate-500 font-semibold">
+                        {product.category}
                       </span>
                     </div>
 
                     {/* Price Banner */}
-                    <div className="mt-2.5 sm:mt-3 pt-2.5 sm:pt-3 border-t border-slate-200 flex items-baseline justify-between">
+                    <div className="mt-2 sm:mt-3 pt-2 sm:pt-3 border-t border-slate-200 flex items-baseline justify-between">
                       <div>
-                        <span className="text-xl sm:text-2xl font-black font-mono text-emerald-700">
+                        <span className="text-lg sm:text-2xl font-black font-mono text-emerald-700">
                           ฿{product.price_per_unit}
                         </span>
-                        <span className="text-xs text-slate-600 font-bold ml-1">
+                        <span className="text-[10px] sm:text-xs text-slate-600 font-bold ml-0.5">
                           /{product.unit_type === 'kg' ? 'กก.' : 'ชิ้น'}
                         </span>
                       </div>
 
-                      <span className="py-1 px-2.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold group-hover:bg-emerald-600 group-hover:text-white transition-all flex items-center gap-1">
-                        {product.unit_type === 'kg' ? <Scale className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                      <span className="py-1 px-2 sm:px-2.5 rounded-xl bg-emerald-100 text-emerald-800 text-[11px] sm:text-xs font-bold group-hover:bg-emerald-600 group-hover:text-white transition-all flex items-center gap-1">
+                        {product.unit_type === 'kg' ? <Scale className="h-3 w-3 sm:h-3.5 sm:w-3.5" /> : <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />}
                         <span>ชั่ง</span>
                       </span>
                     </div>
@@ -377,25 +377,25 @@ export default function PosPage() {
 
       </div>
 
-      {/* Floating Bottom Cart Bar (Mobile/Tablet Only < lg) */}
+      {/* Floating Bottom Cart Bar (Mobile/Tablet Only < lg) - Positioned above Bottom Nav */}
       {cart.length > 0 && (
-        <div className="lg:hidden fixed bottom-4 left-4 right-4 z-40 animate-in slide-in-from-bottom duration-200">
+        <div className="lg:hidden fixed bottom-16 sm:bottom-20 left-3 right-3 sm:left-4 sm:right-4 z-40 animate-in slide-in-from-bottom duration-200">
           <div 
             onClick={() => setIsMobileCartOpen(true)}
-            className="w-full bg-slate-900 text-white rounded-3xl p-4 shadow-2xl flex items-center justify-between cursor-pointer border border-slate-800"
+            className="w-full bg-slate-900 text-white rounded-2xl sm:rounded-3xl p-3 sm:p-4 shadow-2xl flex items-center justify-between cursor-pointer border border-slate-800"
           >
-            <div className="flex items-center gap-3">
-              <div className="relative p-2.5 rounded-2xl bg-emerald-500 text-white">
-                <ShoppingCart className="h-6 w-6" />
+            <div className="flex items-center gap-2.5 sm:gap-3">
+              <div className="relative p-2 sm:p-2.5 rounded-2xl bg-emerald-500 text-white">
+                <ShoppingCart className="h-5 w-5 sm:h-6 sm:w-6" />
                 <span className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black">
                   {cart.length}
                 </span>
               </div>
               <div>
-                <span className="text-xs text-slate-400 font-medium block">
+                <span className="text-[11px] sm:text-xs text-slate-400 font-medium block">
                   แตะเพื่อเปิดตะกร้า
                 </span>
-                <span className="text-xl font-black font-mono text-emerald-400">
+                <span className="text-lg sm:text-xl font-black font-mono text-emerald-400">
                   ฿{cartSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                 </span>
               </div>
@@ -407,10 +407,10 @@ export default function PosPage() {
                 playBeep(700, 0.05);
                 setIsCheckoutOpen(true);
               }}
-              className="py-3 px-5 rounded-2xl bg-emerald-600 text-white font-black text-base flex items-center gap-2 shadow-md shadow-emerald-600/30 active:scale-95 transition-all"
+              className="py-2.5 px-4 sm:py-3 sm:px-5 rounded-xl sm:rounded-2xl bg-emerald-600 text-white font-black text-sm sm:text-base flex items-center gap-1.5 sm:gap-2 shadow-md shadow-emerald-600/30 active:scale-95 transition-all"
             >
               <span>คิดเงิน</span>
-              <ArrowRight className="h-5 w-5" />
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
             </button>
           </div>
         </div>
@@ -419,10 +419,10 @@ export default function PosPage() {
       {/* Mobile Cart Drawer Modal (< lg) */}
       {isMobileCartOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="w-full max-h-[85vh] bg-white rounded-t-3xl p-6 shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-200 border-t border-slate-200">
+          <div className="w-full max-h-[85vh] bg-white rounded-t-3xl p-4 sm:p-6 shadow-2xl flex flex-col animate-in slide-in-from-bottom duration-200 border-t border-slate-200">
             
             {/* Drawer Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-2xl bg-emerald-100 text-emerald-800">
                   <ShoppingCart className="h-6 w-6" />

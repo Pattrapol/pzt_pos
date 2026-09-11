@@ -275,10 +275,61 @@ export default function ExpensesPage() {
             </button>
           </form>
 
-          {/* Expenses Table */}
-          <div className="lg:col-span-2 p-6 sm:p-7 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
+          {/* Expenses List Container */}
+          <div className="lg:col-span-2 p-4 sm:p-7 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
             <h3 className="text-xl font-black text-slate-900 mb-4">รายการค่าใช้จ่ายทั้งหมด</h3>
-            <div className="overflow-x-auto">
+            
+            {/* Mobile View: Clean Card List (< sm) */}
+            <div className="block sm:hidden space-y-3">
+              {expenses.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 font-medium">
+                  ยังไม่มีรายการค่าใช้จ่าย
+                </div>
+              ) : (
+                expenses.map((exp) => {
+                  const CatInfo = categoryLabels[exp.category] || categoryLabels.other;
+                  const Icon = CatInfo.icon;
+                  return (
+                    <div 
+                      key={exp.id} 
+                      className="p-3.5 rounded-2xl border-2 border-slate-200 bg-slate-50/60 space-y-2 shadow-2xs"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-[11px] font-bold text-slate-700">
+                          <Icon className="h-3 w-3 text-emerald-600" />
+                          <span>{CatInfo.label}</span>
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium">{exp.expense_date}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1 pr-2">
+                          <h4 className="font-bold text-slate-900 text-sm truncate">{exp.title}</h4>
+                          {exp.notes && (
+                            <p className="text-xs text-slate-500 italic truncate mt-0.5">{exp.notes}</p>
+                          )}
+                        </div>
+                        <div className="text-right flex items-center gap-2">
+                          <span className="font-mono font-black text-red-600 text-base">
+                            ฿{exp.amount.toLocaleString()}
+                          </span>
+                          <button
+                            onClick={() => handleDeleteExpense(exp.id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            aria-label="ลบ"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Desktop View: Full Table (sm+) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full min-w-[620px] text-left text-sm">
                 <thead className="text-slate-600 border-b border-slate-200 font-bold">
                   <tr>
@@ -424,10 +475,64 @@ export default function ExpensesPage() {
             </button>
           </form>
 
-          {/* Waste Table */}
-          <div className="lg:col-span-2 p-6 sm:p-7 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
+          {/* Waste List Container */}
+          <div className="lg:col-span-2 p-4 sm:p-7 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
             <h3 className="text-xl font-black text-slate-900 mb-4">บันทึกของเสียและความสูญเสีย</h3>
-            <div className="overflow-x-auto">
+            
+            {/* Mobile View: Clean Card List (< sm) */}
+            <div className="block sm:hidden space-y-3">
+              {wasteRecords.length === 0 ? (
+                <div className="py-10 text-center text-slate-400 font-medium">
+                  ยังไม่มีรายการของเสีย
+                </div>
+              ) : (
+                wasteRecords.map((w) => (
+                  <div 
+                    key={w.id} 
+                    className="p-3.5 rounded-2xl border-2 border-slate-200 bg-slate-50/60 space-y-2 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 text-sm">{w.variety}</span>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {new Date(w.recorded_at).toLocaleDateString('th-TH')}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-red-700 text-[10px] font-bold">
+                          {w.waste_type}
+                        </span>
+                        <span className="font-mono font-bold text-amber-800 text-xs">
+                          {w.weight_kg} กก.
+                        </span>
+                      </div>
+                      <div className="text-right flex items-center gap-2">
+                        <span className="font-mono text-slate-700 font-bold text-sm">
+                          ฿{w.estimated_loss_value.toLocaleString()}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteWaste(w.id)}
+                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label="ลบ"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {w.reason && (
+                      <p className="text-xs text-slate-500 italic truncate pt-1 border-t border-slate-100">
+                        {w.reason}
+                      </p>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Desktop View: Full Table (sm+) */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full min-w-[620px] text-left text-sm">
                 <thead className="text-slate-600 border-b border-slate-200 font-bold">
                   <tr>

@@ -133,9 +133,98 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="p-6 sm:p-7 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
-        <div className="overflow-x-auto">
+      {/* Orders List Container */}
+      <div className="p-4 sm:p-7 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
+        
+        {/* Mobile View: Clean Card List (< sm) */}
+        <div className="block sm:hidden space-y-3">
+          {filteredOrders.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 font-medium">
+              ไม่พบบิลการขายที่ตรงกับเงื่อนไข
+            </div>
+          ) : (
+            filteredOrders.map((order) => {
+              const isPending = order.payment_status === 'pending';
+              return (
+                <div 
+                  key={order.id} 
+                  className="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50/60 space-y-2.5 shadow-2xs"
+                >
+                  {/* Card Header: Order No & Status Badge */}
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-black text-slate-900 text-sm">
+                      {order.order_number}
+                    </span>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-black ${
+                      isPending 
+                        ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                        : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                    }`}>
+                      {isPending ? 'ค้างชำระ' : 'ชำระแล้ว'}
+                    </span>
+                  </div>
+
+                  {/* Customer & Timestamp */}
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span className="font-bold text-slate-800">
+                      👤 {order.customer_name} {order.customer_phone ? `(${order.customer_phone})` : ''}
+                    </span>
+                    <span>{new Date(order.created_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })} น.</span>
+                  </div>
+
+                  {/* Items summary */}
+                  <div className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200">
+                    {order.items.map(i => `${i.product_name} (${i.quantity_or_weight} ${i.unit_type === 'kg' ? 'กก.' : 'ชิ้น'})`).join(', ')}
+                  </div>
+
+                  {/* Pricing & Method */}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-200">
+                    <div>
+                      <span className="text-[11px] text-slate-500 font-semibold block">
+                        วิธีชำระ: {order.payment_method === 'promptpay' ? 'QR พร้อมเพย์' :
+                                  order.payment_method === 'cash' ? 'เงินสด' :
+                                  order.payment_method === 'credit' ? 'ค้างชำระ' : 'โอนเงิน'}
+                      </span>
+                      {isPending && order.due_date && (
+                        <span className="text-[11px] text-amber-800 font-bold">นัดชำระ: {order.due_date}</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="font-mono font-black text-emerald-700 text-lg">
+                        ฿{order.total_amount.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Actions */}
+                  <div className="flex items-center gap-2 pt-1">
+                    {isPending && (
+                      <button
+                        onClick={() => setSettleOrder(order)}
+                        className="flex-1 py-2 text-xs font-black rounded-xl bg-amber-500 text-slate-950 hover:bg-amber-400 active:scale-95 transition-all shadow-xs text-center"
+                      >
+                        รับเงินปิดบิล
+                      </button>
+                    )}
+                    <button
+                      onClick={() => {
+                        setSelectedOrder(order);
+                        setIsReceiptOpen(true);
+                      }}
+                      className="flex-1 py-2 text-xs font-bold rounded-xl bg-slate-200/80 hover:bg-slate-300 text-slate-800 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <Printer className="h-4 w-4 text-emerald-600" />
+                      <span>พิมพ์สลิป</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (sm+) */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="text-slate-600 border-b border-slate-200 font-bold">
               <tr>

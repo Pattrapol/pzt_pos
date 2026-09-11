@@ -257,22 +257,48 @@ export default function DashboardPage() {
 
       </div>
 
-      {/* Recent Orders Table */}
-      <div className="p-6 rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
+      {/* Recent Orders List Container */}
+      <div className="p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white border-2 border-slate-200 shadow-xs">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-xl font-black text-slate-900">รายการขายล่าสุด</h3>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900">รายการขายล่าสุด</h3>
             <p className="text-xs sm:text-sm text-slate-500 font-medium">ประวัติการออกบิลและช่องทางการชำระเงิน</p>
           </div>
           <Link
             href="/orders"
-            className="text-sm font-bold text-emerald-700 hover:underline flex items-center gap-1"
+            className="text-xs sm:text-sm font-bold text-emerald-700 hover:underline flex items-center gap-1"
           >
             ดูทั้งหมด ({orders.length}) <ArrowUpRight className="h-4 w-4" />
           </Link>
         </div>
 
-        <div className="overflow-x-auto pt-3">
+        {/* Mobile View: Clean Card List (< sm) */}
+        <div className="block sm:hidden pt-3 space-y-2.5">
+          {orders.slice(0, 5).map((order) => (
+            <div key={order.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-slate-900 text-xs">{order.order_number}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  order.payment_status === 'paid'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {order.payment_status === 'paid' ? 'ชำระแล้ว' : 'ค้างชำระ'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-800 font-bold">{order.customer_name}</span>
+                <span className="font-mono font-black text-emerald-700 text-sm">฿{order.total_amount.toLocaleString()}</span>
+              </div>
+              <div className="text-[11px] text-slate-500 truncate">
+                {order.items.map(i => `${i.product_name} (${i.quantity_or_weight} ${i.unit_type === 'kg' ? 'กก.' : 'ชิ้น'})`).join(', ')}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop View: Full Table (sm+) */}
+        <div className="hidden sm:block overflow-x-auto pt-3">
           <table className="w-full min-w-[620px] text-left text-sm">
             <thead className="text-slate-600 border-b border-slate-200 font-bold">
               <tr>
