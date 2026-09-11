@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🍈 PZT Fruit POS - ระบบจัดการร้านผลไม้สดและทุเรียนตามฤดูกาล
 
-## Getting Started
+> ระบบ Point of Sale (POS) และบริหารต้นทุนกำไรสำหรับธุรกิจทุเรียนและผลไม้สด พัฒนาด้วย **Next.js 15 (App Router)**, **TypeScript**, **Tailwind CSS**, และเชื่อมต่อฐานข้อมูล **Supabase** พร้อมรองรับการ Deploy สู่ **Vercel** แบบ 100%
 
-First, run the development server:
+---
+
+## ✨ ฟังก์ชันหลักของระบบ (Core Features)
+
+1. **🛒 แคชเชียร์ขายหน้าร้าน (Cashier & POS Screen)**:
+   - ออกแบบ Touch-Friendly รองรับทั้งมือถือ, iPad/แท็บเล็ต และคอมพิวเตอร์
+   - **ระบบชั่งน้ำหนักเสมือนจริง (Digital Scale Numpad)**: กดเลือกทุเรียน -> ป๊อปอัปเครื่องชั่งให้กดกรอกน้ำหนัก (กก.) คำนวณราคาอัตโนมัติตามราคาต่อ กก.
+   - รองรับทั้งแบบชั่งน้ำหนัก (กก.) และขายแบบกล่อง/ชิ้น (เนื้อแกะ, ทุเรียนทอด)
+   - ตะกร้าสินค้าแก้ไขได้แบบ Real-time พร้อมช่องใส่ส่วนลดท้ายบิล
+
+2. **💳 ระบบรับชำระเงินครบวงจร (Multi-Payment System)**:
+   - **Dynamic PromptPay QR Code**: สร้าง QR Code พร้อมยอดเงินเป๊ะๆ อัตโนมัติ (ตามมาตรฐาน EMVCo ของธนาคารแห่งประเทศไทย) ลูกค้าสแกนจ่ายได้ทันทีไม่ต้องพิมพ์ยอดเอง
+   - **เงินสด (Cash)**: มีปุ่มลัดธนบัตร (100, 500, 1000, พอดี) พร้อมระบบคำนวณเงินทอนอัตโนมัติ
+   - **โอนเงินธนาคาร**: แสดงเลขบัญชีและช่องทางโอน
+   - **ค้างชำระ (Credit / Pay Later)**: สำหรับลูกค้าประจำและขายส่ง กำหนดวันนัดชำระ และมีระบบติดตามหนี้
+
+3. **🖨️ ใบเสร็จและสลิปความร้อน (Thermal Receipt & Digital Slip)**:
+   - รูปแบบใบเสร็จมาตรฐานเครื่องพิมพ์ความร้อน (Thermal 58mm / 80mm)
+   - ปุ่มกดพิมพ์สลิปทันที (`window.print()`) จัดหน้าให้อัตโนมัติ
+   - ปุ่มคัดลอกข้อความสรุปบิลเพื่อส่งให้ลูกค้าทาง LINE
+
+4. **📦 บันทึกล็อตการรับซื้อ & ควบคุมต้นทุน (Inbound Lots & Fruit Cost)**:
+   - บันทึกการเหมาสวน หรือรับซื้อผลไม้เข้าสต็อก (สวน, สายพันธุ์, เกรด, น้ำหนักรวม, ราคารับซื้อรวม)
+   - ระบบคำนวณต้นทุนเฉลี่ยต่อกิโลกรัมให้อัตโนมัติ และอัปเดตสต็อกคงเหลือ
+
+5. **💸 บันทึกค่าใช้จ่ายแฝง & ของเสีย (Operational Expenses & Waste Tracking)**:
+   - บันทึกค่าใช้จ่ายเสริม: ค่าจ้างคนงานตัด/แกะ, ค่าขนส่ง/ค่าน้ำมัน, ค่ากล่องโฟม/บรรจุภัณฑ์, ค่าเช่าแผง
+   - บันทึกของเสีย / ผลเน่า / หนามหัก / เปลือกทิ้ง เพื่อคำนวณ Yield (%) และมูลค่าความเสียหายที่แท้จริง
+
+6. **📊 แดชบอร์ดสรุปกำไร-ขาดทุน (P&L & Analytics Dashboard)**:
+   - สรุปตัวเลขทางการเงินแบบ Real-time:
+     - **ยอดขายรวม (Total Revenue)**
+     - **ต้นทุนผลไม้รวม (Fruit Purchasing Cost)**
+     - **ค่าใช้จ่ายแฝงรวม (Operational Expenses)**
+     - **ความสูญเสียจากของเสีย (Total Waste Loss)**
+     - **กำไรสุทธิ (Net Profit) & Profit Margin (%)**
+     - **Yield Efficiency**: สัดส่วนน้ำหนักที่ขายได้จริง vs น้ำหนักของเสีย
+
+7. **📑 ระบบติดตามลูกหนี้และประวัติบิล (Orders & Receivables)**:
+   - กรองบิลที่ชำระแล้ว และบิลที่ค้างชำระ (Pending Credit)
+   - ปุ่มรับชำระเงินและปิดบิลย้อนหลัง
+
+---
+
+## 🚀 วิธีการติดตั้งและรันในเครื่อง (Local Development)
 
 ```bash
+# 1. ติดตั้ง Dependencies
+npm install
+
+# 2. เริ่มต้นรัน Dev Server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# 3. เปิดเบราว์เซอร์เข้าใช้งาน
+http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **หมายเหตุ**: ระบบมีโหมด **Offline / Local Demo** ในตัว หากยังไม่ได้ต่อ Supabase ระบบจะจำลองข้อมูลเริ่มต้นให้คุณทดลองใช้งาน ฟังก์ชันการขาย ชั่งน้ำหนัก และคำนวณกำไรได้ทันที 100%!
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🗄️ การเชื่อมต่อฐานข้อมูล Supabase (Supabase Setup)
 
-## Learn More
+1. สมัครใช้งานที่ [supabase.com](https://supabase.com) แล้วกด **New Project**
+2. ไปที่เมนู **SQL Editor** ทางด้านซ้าย
+3. คัดลอกโค้ดจากไฟล์ `supabase/schema.sql` แล้วกด **Run** เพื่อสร้างตารางและสิทธิ์ RLS ทั้งหมด
+4. คัดลอกโค้ดจากไฟล์ `supabase/seed.sql` แล้วกด **Run** เพื่อใส่ข้อมูลตัวอย่างเริ่มต้น
+5. ไปที่ **Project Settings > API** คัดลอก:
+   - Project URL
+   - anon / public API key
+6. สร้างไฟล์ `.env.local` ในโฟลเดอร์โปรเจกต์:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## ☁️ การ Deploy ขึ้น Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Push โปรเจกต์ขึ้น **GitHub**
+2. ไปที่ [vercel.com](https://vercel.com) แล้วกด **Add New > Project**
+3. เลือก Repository ที่คุณ Push ขึ้นไป
+4. ในส่วน **Environment Variables** ให้เพิ่ม 2 ค่า:
+   - `NEXT_PUBLIC_SUPABASE_URL`: URL ของ Supabase Project
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Anon Key ของ Supabase Project
+5. กด **Deploy** เมื่อเสร็จสิ้นคุณจะได้ URL พร้อมใช้งานทั่วโลกทันที!
